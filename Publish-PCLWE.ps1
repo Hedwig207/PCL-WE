@@ -32,7 +32,10 @@ param(
     [switch]$NoPush
 )
 
-$ErrorActionPreference = "Stop"
+# PowerShell 5.1 会把 git 写往 stderr 的正常进度/提示信息当成 ErrorRecord，
+# 搭配 "Stop" 会让脚本在 git 命令处中断。这里不用 "Stop"，
+# 改为通过 git 的退出码 ($LASTEXITCODE) 判断成功与否。
+$ErrorActionPreference = "Continue"
 
 # 仓库根目录 = 脚本所在目录（WCL）
 $Root = $PSScriptRoot
@@ -166,7 +169,9 @@ if ($NoPush) {
 } else {
     Write-Step "推送到远程仓库"
     Write-Host "正在推送分支 $Branch 及标签 $TagName ..."
-    git push -u origin $Branch --tags
+
+    # 普通推送；若因远程存在无关提交而被拒，随后自动转为强制覆盖。
+    git push -u origin $Branch --tags 2>$null
     if ($LASTEXITCODE -ne 0) {
         # 常见原因：远程已有本地没有的无关提交（如 GitHub 新建仓库自动生成的 README/LICENSE）。
         # 这是专属发布仓库，可安全地用本地内容覆盖远程。
@@ -181,12 +186,19 @@ if ($NoPush) {
             if (-not $mergeBase) {
                 Write-Host "远程分支与本地没有共同历史（多为 GitHub 自动生成的初始提交）。" -ForegroundColor Yellow
                 Write-Host "该仓库为专属发布仓库，将以本地内容覆盖远程 $Branch 分支。" -ForegroundColor Yellow
-                git push -u --force-with-lease origin $Branch --tags
+                # 分支与标签分开推送：force-with-lease 对已更新的标签会报 stale info，
+                # 故分支用 force-with-lease（更安全），标签单独用 force。
+                git push -u --force-with-lease origin $Branch 2>$null
                 if ($LASTEXITCODE -ne 0) {
-                    Write-Err "强制推送仍失败。请检查推送权限、凭证与网络。"
+                    Write-Err "分支强制推送失败。请检查推送权限、凭证与网络。"
                     exit 1
                 }
-                Write-Host "`n已覆盖远程分支并推送成功！" -ForegroundColor Green
+                git push --force origin $TagName 2>$null
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Err "标签强制推送失败。请检查推送权限、凭证与网络。"
+                    exit 1
+                }
+                Write-Host "`n已将本地源码覆盖到远程 $Branch 分支并推送标签成功！" -ForegroundColor Green
             } else {
                 Write-Err "远程存在本地没有且无冲突的新提交，为避免破坏历史，未自动推送。"
                 Write-Err "请手动执行: git pull --rebase origin $Branch 后重试。"
