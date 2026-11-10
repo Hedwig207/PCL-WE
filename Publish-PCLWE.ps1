@@ -123,8 +123,8 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
     Write-Host "版本号: $Version"
 }
 
-# 转换为合法的 Git 标签名（去掉空格及非法字符）
-$TagName = "v" + ($Version -replace '[^0-9A-Za-z. _-]', '-').Trim()
+# 转换为合法的 Git 标签名（Git 标签不支持空格，统一替换为下划线）
+$TagName = "v" + ($Version -replace '\s+', '_' -replace '[^0-9A-Za-z._-]', '')
 Write-Host "生成的 Git 标签: $TagName"
 
 # ---------- 5. 生成提交说明 ----------
