@@ -168,13 +168,37 @@ if ($NoPush) {
     Write-Host "正在推送分支 $Branch 及标签 $TagName ..."
     git push -u origin $Branch --tags
     if ($LASTEXITCODE -ne 0) {
-        Write-Err "推送失败。请检查："
-        Write-Err "  1. 你已对 PCL-WE 仓库有推送权限"
-        Write-Err "  2. 已配置凭证（可用 git credential-manager 或 PAT）"
-        Write-Err "  3. 网络连接正常"
-        exit 1
+        # 常见原因：远程已有本地没有的无关提交（如 GitHub 新建仓库自动生成的 README/LICENSE）。
+        # 这是专属发布仓库，可安全地用本地内容覆盖远程。
+        Write-Host "`n第一次推送被拒绝，尝试拉取远程信息..." -ForegroundColor Yellow
+        git fetch origin 2>$null
+
+        $remoteHead = git rev-parse --verify "origin/$Branch" 2>$null
+        $localHead  = git rev-parse --verify "HEAD" 2>$null
+        if ($remoteHead -and ($remoteHead -ne $localHead)) {
+            # 判断远程是否与本地存在共同祖先
+            $mergeBase = git merge-base $localHead "origin/$Branch" 2>$null
+            if (-not $mergeBase) {
+                Write-Host "远程分支与本地没有共同历史（多为 GitHub 自动生成的初始提交）。" -ForegroundColor Yellow
+                Write-Host "该仓库为专属发布仓库，将以本地内容覆盖远程 $Branch 分支。" -ForegroundColor Yellow
+                git push -u --force-with-lease origin $Branch --tags
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Err "强制推送仍失败。请检查推送权限、凭证与网络。"
+                    exit 1
+                }
+                Write-Host "`n已覆盖远程分支并推送成功！" -ForegroundColor Green
+            } else {
+                Write-Err "远程存在本地没有且无冲突的新提交，为避免破坏历史，未自动推送。"
+                Write-Err "请手动执行: git pull --rebase origin $Branch 后重试。"
+                exit 1
+            }
+        } else {
+            Write-Err "推送失败。请检查：推送权限 / 凭证（credential-manager 或 PAT）/ 网络。"
+            exit 1
+        }
+    } else {
+        Write-Host "`n推送成功！" -ForegroundColor Green
     }
-    Write-Host "`n推送成功！" -ForegroundColor Green
 }
 
 Write-Host "`n完成！" -ForegroundColor Green
