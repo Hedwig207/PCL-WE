@@ -447,9 +447,8 @@ Public Class FormMain
             End Try
             '上报
             Telemetry("启动")
-            '检查并迁移磁盘上的 Minecraft 文件夹与旧 PCL 配置
-            ModMigration.ScanAndMigrate()
             'WCL 欢迎弹窗（每次重新编译后显示一次）
+            '欢迎弹窗优先级最高，必须先于其他所有弹窗展示
             If Settings.Get(Of String)("SystemWelcomeShown") <> ModMigration.GetCompileStamp() Then
                 MyMsgBox("这里是来自 Hedwig 的 PCL 改版——PCL WE（WCL）！" & vbCrLf & "欢迎来 GitHub 改进~", "欢迎使用 PCL WE",
                          "谢谢海德薇", "打开 GitHub",
@@ -457,13 +456,33 @@ Public Class FormMain
                          IsBlue:=True)
                 Settings.Set("SystemWelcomeShown", ModMigration.GetCompileStamp())
             End If
-            '开源版本提示（每次重新编译后显示一次）
-            If VersionBranchMain = "OpenSource" Then
-                If Settings.Get(Of String)("SystemOpenSourceShown") <> ModMigration.GetCompileStamp() Then
-                    MyMsgBox($"开源版默认不包含以下内容，你可以自行启用/了解：{vbCrLf}- CurseForge 下载：需先在【设置 → 启动器 → 开源版密钥】中填入自己的 API Key{vbCrLf}- 正版登录：需先在【设置 → 启动器 → 开源版密钥】中填入微软 Client ID{vbCrLf}{vbCrLf}以下内容由于技术或赞助原因暂不开放：{vbCrLf}- 更新与联网通知：被龙猫删了qwq{vbCrLf}- 主题切换：为尊重龙猫（不是），仅开放大主题与自定义切换{vbCrLf}- 百宝箱：又被龙猫删了qwq", "开源版本说明",
-                           IsBlue:=True)
-                    Settings.Set("SystemOpenSourceShown", ModMigration.GetCompileStamp())
-                End If
+            '当前版本说明（每次重新编译后显示一次）
+            If Settings.Get(Of String)("SystemVersionNoteShown") <> ModMigration.GetCompileStamp() Then
+                MyMsgBox("当前版本：" & VersionBaseName & "（版本号 " & VersionCode & "，" & BuildTypeDisplay & "）" & vbCrLf &
+                         "PCL WE 完全开源，全部功能都可以直接使用和修改，不需要任何额外密钥。" & vbCrLf &
+                         "欢迎来 GitHub 提改进、反馈问题~", "当前版本说明",
+                         "我知道了", "打开 GitHub",
+                         Button2Action:=Sub() OpenWebsite("https://github.com/Hedwig207/WCL1"),
+                         IsBlue:=True)
+                Settings.Set("SystemVersionNoteShown", ModMigration.GetCompileStamp())
+            End If
+            '检查并迁移磁盘上的 Minecraft 文件夹与旧 PCL 配置
+            ModMigration.ScanAndMigrate()
+            '重要事项声明（每次重新编译后显示一次，位置与原来保持一致）
+            If Settings.Get(Of String)("SystemImportantNoteShown") <> ModMigration.GetCompileStamp() Then
+                MyMsgBox("使用 PCL WE 前，请先了解以下重要事项：" & vbCrLf & vbCrLf &
+                         "【需要自行配置】" & vbCrLf &
+                         "- CurseForge 下载：需先在【设置 → 系统 → 开源版密钥】中填入自己的 CurseForge API Key" & vbCrLf &
+                         "- 正版登录：需先在【设置 → 系统 → 开源版密钥】中填入自己的微软 Client ID" & vbCrLf & vbCrLf &
+                         "【本版本暂不包含】" & vbCrLf &
+                         "- 更新与联网通知：本版本不含在线更新，新版本需要手动替换程序文件" & vbCrLf &
+                         "- 主题切换：仅开放大主题与自定义配色，隐藏主题未在本版本开放" & vbCrLf & vbCrLf &
+                         "【使用前请注意】" & vbCrLf &
+                         "- 百宝箱的「一键打包」会把登录数据、邮箱数据与全部配置一起写入 .wclconfig，请勿把生成的整合包分享给他人" & vbCrLf &
+                         "- 百宝箱的「搜索文件夹」会扫描所有磁盘，耗时较长，检测期间可以正常使用启动器" & vbCrLf & vbCrLf &
+                         "PCL WE 完全开源，以上限制均可自行修改源码解除。",
+                         "重要事项", "我已了解", IsBlue:=True)
+                Settings.Set("SystemImportantNoteShown", ModMigration.GetCompileStamp())
             End If
         End Sub, "初始化", ThreadPriority.Lowest)
 

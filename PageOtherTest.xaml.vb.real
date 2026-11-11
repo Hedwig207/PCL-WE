@@ -1,0 +1,138 @@
+﻿Public Class PageOtherTest
+
+    ''' <summary>
+    ''' 百宝箱 · 下载自定义文件。
+    ''' 通过 PCL 的下载引擎将指定网址的文件下载到指定文件夹。
+    ''' </summary>
+    Public Shared Sub StartCustomDownload(Url As String, FileName As String, Optional Folder As String = Nothing)
+        Try
+            '默认下载到 PCL 目录下的 Downloads 文件夹
+            If String.IsNullOrEmpty(Folder) Then Folder = Paths.Base & "PCL\Downloads\"
+            DirectoryUtils.Create(Folder)
+            '去除文件路径中的多余目录，仅保留文件名
+            Dim TargetAddress As String = Folder & FileName.Replace("\", "/").AfterLast("/")
+            ModNet.NetDownloadByClient(Url, TargetAddress)
+            Hint("文件下载成功！", HintType.Green)
+            If Path.GetExtension(FileName).ToLower() = ".zip" Then
+                MyMsgBox("文件下载完成。" & vbCrLf & "若需安装整合包，请前往“下载 → 导入整合包”进行安装。", "下载完成")
+            End If
+        Catch ex As OperationCanceledException
+        Catch ex As Exception
+            Hint("文件下载失败：" & If(ex.Message, "未知错误"), HintType.Red)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 百宝箱 · 今日人品。
+    ''' </summary>
+    Public Shared Sub Jrrp()
+        Dim Val As Integer = RandomInteger(1, 100)
+        Hint("今日人品：" & Val & " / 100", HintType.Green)
+    End Sub
+
+    ''' <summary>
+    ''' 百宝箱 · 清理游戏垃圾。
+    ''' 清理 PCL 运行过程中产生的缓存与临时文件。
+    ''' </summary>
+    Public Shared Sub RubbishClear()
+        Hint("正在清理游戏垃圾，请稍候……", HintType.Blue)
+        RunInThread(
+        Sub()
+            Dim Released As Long = 0
+            Try
+                '待清理的缓存目录列表
+                Dim CacheFolders As New List(Of String) From {
+                    PathTemp & "Cache\",
+                    PathTemp & "Download\",
+                    PathTemp & "Message\",
+                    PathTemp & "Pictures_Ani\",
+                    PathTemp & "TaskTemp\",
+                    PathTemp & "Help\"
+                }
+                For Each Folder In CacheFolders
+                    Try
+                        If Not DirectoryUtils.Exists(Folder) Then Continue For
+                        Released += GetFolderSize(Folder)
+                        DirectoryUtils.Delete(Folder)
+                    Catch
+                    End Try
+                Next
+            Catch ex As Exception
+                Logger.Warn(ex, "清理游戏垃圾失败")
+            End Try
+            RunInUi(
+            Sub()
+                Dim ReleasedMb = (Released / 1024 / 1024).ToString("0.0")
+                Hint("清理游戏垃圾完成！" & vbCrLf & "共清理 " & ReleasedMb & " MB 垃圾文件", HintType.Green)
+            End Sub)
+        End Sub)
+    End Sub
+
+    ''' <summary>
+    ''' 计算文件夹总大小（字节）。
+    ''' </summary>
+    Private Shared Function GetFolderSize(Folder As String) As Long
+        Dim Total As Long = 0
+        For Each File In DirectoryUtils.EnumerateFiles(Folder, True)
+            Try
+                Total += FileUtils.GetInfo(File).Length
+            Catch
+            End Try
+        Next
+        Return Total
+    End Function
+
+    ''' <summary>
+    ''' 百宝箱 · 内存优化。
+    ''' 释放当前进程未使用的物理内存。
+    ''' </summary>
+    Public Shared Sub MemoryOptimize(ShowHint As Boolean)
+        MemoryOptimizeInternal(ShowHint)
+    End Sub
+
+    ''' <summary>
+    ''' 内存优化的核心实现：强制垃圾回收并立即提交工作集，让系统回收未使用的物理内存。
+    ''' </summary>
+    Public Shared Sub MemoryOptimizeInternal(ShowHint As Boolean)
+        GC.Collect()
+        GC.WaitForPendingFinalizers()
+        GC.Collect()
+        SetProcessWorkingSetSize(Process.GetCurrentProcess().Handle, -1, -1)
+        If ShowHint Then Hint("内存优化完成！", HintType.Green)
+    End Sub
+
+    ''' <summary>
+    ''' 获取随机彩蛋文本。
+    ''' </summary>
+    Public Shared Function GetRandomCave() As String
+        Return GetRandomPresetHint()
+    End Function
+
+    ''' <summary>
+    ''' 获取加载时的随机提示文本。
+    ''' </summary>
+    Public Shared Function GetRandomHint() As String
+        Return GetRandomPresetHint()
+    End Function
+
+    ''' <summary>
+    ''' 从预设列表中随机选取一条提示文本。
+    ''' </summary>
+    Public Shared Function GetRandomPresetHint() As String
+        Dim List As New List(Of String) From {
+            "WCL beta1.0-intest",
+            "欢迎使用 Warm Ocean Craft 启动器！",
+            "百宝箱功能已恢复！",
+            "享受游戏的乐趣吧~",
+            "清理垃圾，从我做起！",
+            "内存优化，流畅游戏！"
+        }
+        Return RandomOne(List)
+    End Function
+
+    ''' <summary>
+    ''' 让 Windows 自动回收未使用的物理内存。
+    ''' </summary>
+    Private Declare Function SetProcessWorkingSetSize Lib "kernel32" (hProcess As IntPtr, dwMinimumWorkingSetSize As Integer, dwMaximumWorkingSetSize As Integer) As Boolean
+
+End Class

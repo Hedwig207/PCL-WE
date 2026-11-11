@@ -18,16 +18,71 @@ Public Module ModMigration
         End Try
     End Function
 
+    Private ScanSync As New Object()
+    Private IsScanning As Boolean = False
+
+    ''' <summary>
+    ''' 尝试占用检测任务。若已有检测正在进行，则返回 False，用于忽略重复触发。
+    ''' </summary>
+    Private Function TryBeginScan() As Boolean
+        SyncLock ScanSync
+            If IsScanning Then Return False
+            IsScanning = True
+            Return True
+        End SyncLock
+    End Function
+
+    ''' <summary>
+    ''' 释放检测任务的占用。
+    ''' </summary>
+    Private Sub EndScan()
+        SyncLock ScanSync
+            IsScanning = False
+        End SyncLock
+    End Sub
+
     ''' <summary>
     ''' 扫描所有磁盘递归寻找 .minecraft 文件夹，并向用户询问是否迁移。
-    ''' 仅在同一版本构建下执行一次，且会处理找到的全部文件夹。
+    ''' 仅在同一版本构建下自动执行一次；从百宝箱手动触发时传入 Force 可跳过这些限制。
     ''' </summary>
-    Public Sub ScanAndMigrate()
+    ''' <param name="Force">为 True 时跳过已检测过判断与确认弹窗，直接开始静默检测。</param>
+    Public Sub ScanAndMigrate(Optional Force As Boolean = False)
+        If Not TryBeginScan() Then
+            Hint("检测任务正在进行中，请稍候……", HintType.Blue)
+            Return
+        End If
+        Dim IsStarted As Boolean = False
         Try
-            '仅在该版本构建下扫描一次（用编译标识，重编译后自动重新检测）
-            If Settings.Get(Of String)("SystemMigrationShown") = GetCompileStamp() Then Return
-            Settings.Set("SystemMigrationShown", GetCompileStamp())
+            If Not Force Then
+                '仅在该版本构建下扫描一次（用编译标识，重编译后自动重新检测）
+                If Settings.Get(Of String)("SystemMigrationShown") = GetCompileStamp() Then Return
+                Settings.Set("SystemMigrationShown", GetCompileStamp())
 
+                '只弹一次询问窗口，之后全部静默批量检测
+                If MyMsgBox("是否扫描所有磁盘，查找其他的 Minecraft 文件夹？" & vbCrLf &
+                            "检测会在后台静默进行，期间可以正常使用启动器；" & vbCrLf &
+                            "检测结束后会将找到的文件夹一次性列出，由你勾选需要迁移的目录。",
+                            "检测 Minecraft 文件夹", "开始检测", "不再提示", IsBlue:=True) = 2 Then Return
+            End If
+
+            Hint("正在后台检测 Minecraft 文件夹，请稍候……", HintType.Blue)
+
+            '在后台线程静默批量扫描，避免阻塞界面
+            IsStarted = True
+            RunInThread(AddressOf ScanAndMigrateInternal)
+        Catch ex As Exception
+            Logger.Error(ex, "执行 Minecraft 文件夹迁移检查失败")
+        Finally
+            '未能启动后台任务时（例如用户选择不再提示）立即释放占用
+            If Not IsStarted Then EndScan()
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 静默批量扫描所有磁盘，并在检测结束后一次性展示结果供用户勾选迁移。
+    ''' </summary>
+    Private Sub ScanAndMigrateInternal()
+        Try
             '递归遍历所有磁盘，寻找 .minecraft 文件夹（限深度防止卡死）
             Dim FoundFolders As New List(Of String)
             For Each Drive In Environment.GetLogicalDrives()
@@ -39,32 +94,65 @@ Public Module ModMigration
                 End Try
             Next
 
-            '遍历每个找到的 .minecraft，分别询问是否迁移
-            Dim Index As Integer = 1
+            '过滤掉已经加入列表的文件夹，剩下的即为需要用户决定的新文件夹
+            Dim NewFolders As New List(Of String)
+            For Each McFolder In FoundFolders
+                If Not IsFolderInList(McFolder) Then NewFolders.Add(McFolder)
+            Next
+
+            '全部检测完毕：没有新文件夹则直接结束
+            If NewFolders.Count = 0 Then
+                RunInUi(Sub() Hint("检测完成，没有发现新的 Minecraft 文件夹。", HintType.Green))
+                Return
+            End If
+
+            '批量展示所有目录，通过勾选决定迁移哪些
+            'WPF 控件必须在 UI（STA）线程构造，因此列表项与弹窗都放进 RunInUiWait 里创建
+            Dim SelectedIndices = RunInUiWait(
+                Function()
+                    Dim Selections As New List(Of IMyRadio)
+                    For Each McFolder In NewFolders
+                        Dim CleanPath As String = PathUtils.RemoveSlashSuffix(McFolder)
+                        Dim ParentName As String = PathUtils.GetLastPart(CleanPath.BeforeLast("\"))
+                        Selections.Add(New MyListItem With {
+                            .Title = If(String.IsNullOrEmpty(ParentName), CleanPath, ParentName & " 下的 .minecraft"),
+                            .Info = CleanPath,
+                            .Height = 40,
+                            .Type = MyListItem.CheckType.CheckBox
+                        })
+                    Next
+                    Return MyMsgBoxSelectMulti(Selections, $"检测到 {NewFolders.Count} 个 Minecraft 文件夹", "加入并迁移", "全部忽略")
+                End Function)
+            If SelectedIndices Is Nothing OrElse SelectedIndices.Count = 0 Then Return
+
+            '按勾选结果批量迁移
             Dim AnyMigrated As Boolean = False
-            For Each McFolderToMigrate As String In FoundFolders
-                '若该文件夹已经在列表中，则跳过
-                If IsFolderInList(McFolderToMigrate) Then Continue For
-                Dim Result = MyMsgBox(
-                    $"检测到磁盘上存在 Minecraft 文件夹：{vbCrLf}{McFolderToMigrate}{vbCrLf}{vbCrLf}是否将其加入启动器的版本列表，并迁移其中可用的 PCL 设置与个性化数据？",
-                    "检测到 Minecraft 文件夹",
-                    "加入并迁移", "忽略")
-                If Result = 1 Then
+            Dim Index As Integer = 1
+            For Each SelectedIndex In SelectedIndices
+                Try
+                    Dim McFolderToMigrate As String = NewFolders(SelectedIndex)
                     AddFolderToList(McFolderToMigrate, "迁移文件夹" & Index)
                     TryMigratePclData(McFolderToMigrate)
                     AnyMigrated = True
                     Index += 1
-                End If
-                If MyMsgBox("是否继续检查其余目录？", "继续检查", "继续", "不再提示") = 2 Then Exit For
+                Catch ex As Exception
+                    Logger.Warn(ex, "迁移 Minecraft 文件夹失败")
+                End Try
             Next
 
             '若有目录迁移成功，则刷新 Minecraft 文件夹列表并提示
             If AnyMigrated Then
-                McFolderListLoader.Start(IsForceRestart:=True)
-                MyMsgBox("已成功迁移 Minecraft 文件夹与相关设置！", "迁移完成", IsBlue:=True)
+                RunInUi(
+                Sub()
+                    McFolderListLoader.Start(IsForceRestart:=True)
+                    Hint($"已成功迁移 {SelectedIndices.Count} 个 Minecraft 文件夹！", HintType.Green)
+                End Sub)
             End If
         Catch ex As Exception
             Logger.Error(ex, "执行 Minecraft 文件夹迁移检查失败")
+        Finally
+            '检测流程结束后释放占用，允许下次重新触发
+            EndScan()
         End Try
     End Sub
 

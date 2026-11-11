@@ -212,6 +212,7 @@ EndHint:
     Public Enum MyMsgBoxType
         Text
         [Select]
+        SelectMulti
         Input
         Login
     End Enum
@@ -325,6 +326,30 @@ EndHint:
     End Function
 
     ''' <summary>
+    ''' 显示多选弹窗，返回被勾选的项目编号列表（从 0 开始）。若点击第二个按钮，则返回 Nothing。
+    ''' </summary>
+    ''' <param name="Title">弹窗的标题。</param>
+    ''' <param name="Button1">显示的第一个按钮，默认为 “确定”。</param>
+    ''' <param name="Button2">显示的第二个按钮，默认为空。</param>
+    ''' <param name="IsWarn">是否为警告弹窗，若为 True，弹窗配色和背景会变为红色。</param>
+    Public Function MyMsgBoxSelectMulti(Selections As IEnumerable(Of IMyRadio), Optional Title As String = "提示", Optional Button1 As String = "确定", Optional Button2 As String = "", Optional IsWarn As Boolean = False) As List(Of Integer)
+        '将弹窗列入队列
+        Dim Converter As New MyMsgBoxConverter With {.Type = MyMsgBoxType.SelectMulti, .Button1 = Button1, .Button2 = Button2, .Content = Selections, .IsWarn = IsWarn, .Title = Title}
+        WaitingMyMsgBox.Enqueue(Converter)
+        '虽然我也不知道这是啥但是能用就成了 :)
+        Try
+            If FrmMain IsNot Nothing Then FrmMain.DragStop()
+            If RunInUi() Then MyMsgBoxTick()
+            ComponentDispatcher.PushModal()
+            Dispatcher.PushFrame(Converter.WaitFrame)
+        Finally
+            ComponentDispatcher.PopModal()
+        End Try
+        Logger.Info($"多选弹框返回：{If(Converter.Result, "null")}")
+        Return CType(Converter.Result, List(Of Integer))
+    End Function
+
+    ''' <summary>
     ''' 等待显示的弹窗。
     ''' </summary>
     Public WaitingMyMsgBox As New ConcurrentQueue(Of MyMsgBoxConverter)
@@ -342,6 +367,8 @@ EndHint:
                     Case MyMsgBoxType.Input
                         FrmMain.PanMsg.Children.Add(New MyMsgInput(TargetMsgBox))
                     Case MyMsgBoxType.Select
+                        FrmMain.PanMsg.Children.Add(New MyMsgSelect(TargetMsgBox))
+                    Case MyMsgBoxType.SelectMulti
                         FrmMain.PanMsg.Children.Add(New MyMsgSelect(TargetMsgBox))
                     Case MyMsgBoxType.Text
                         FrmMain.PanMsg.Children.Add(New MyMsgText(TargetMsgBox))

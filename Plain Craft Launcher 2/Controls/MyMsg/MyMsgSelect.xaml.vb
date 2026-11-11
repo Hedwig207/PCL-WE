@@ -2,6 +2,10 @@ Public Class MyMsgSelect
 
     Private ReadOnly MyConverter As MyMsgBoxConverter
     Private ReadOnly Uuid As Integer = GetUuid()
+    ''' <summary>
+    ''' 是否为多选模式（使用勾选框，可同时选中多项）。
+    ''' </summary>
+    Private ReadOnly IsMulti As Boolean = False
 
     Public Sub New(Converter As MyMsgBoxConverter)
         Try
@@ -10,6 +14,7 @@ Public Class MyMsgSelect
             Btn1.Name = Btn1.Name & GetUuid()
             Btn2.Name = Btn2.Name & GetUuid()
             MyConverter = Converter
+            IsMulti = Converter.Type = MyMsgBoxType.SelectMulti
             LabTitle.Text = Converter.Title
             Btn1.Text = Converter.Button1
             If Converter.IsWarn Then
@@ -27,7 +32,7 @@ Public Class MyMsgSelect
                 PanSelection.Children.Add(Selection)
                 AddHandler Selection.Check, AddressOf OnChecked
                 If TypeOf Selection Is MyListItem Then
-                    CType(Selection, MyListItem).Type = MyListItem.CheckType.RadioBox
+                    CType(Selection, MyListItem).Type = If(IsMulti, MyListItem.CheckType.CheckBox, MyListItem.CheckType.RadioBox)
                     CType(Selection, MyListItem).MinHeight = 24
                 Else
                     CType(Selection, MyRadioBox).MinHeight = 24
@@ -79,7 +84,21 @@ Public Class MyMsgSelect
     End Sub
 
     Public Sub Btn1_Click() Handles Btn1.Click
-        If MyConverter.IsExited OrElse SelectedIndex = -1 Then Return
+        If MyConverter.IsExited Then Return
+        If IsMulti Then
+            '收集所有被勾选的项目编号
+            Dim CheckedIndices As New List(Of Integer)
+            For Each Child In PanSelection.Children
+                Child = MyVirtualizingElement.TryInit(Child)
+                If TypeOf Child Is MyListItem AndAlso CType(Child, MyListItem).Checked Then CheckedIndices.Add(PanSelection.Children.IndexOf(Child))
+            Next
+            If CheckedIndices.Count = 0 Then Return
+            MyConverter.IsExited = True
+            MyConverter.Result = CheckedIndices
+            Close()
+            Return
+        End If
+        If SelectedIndex = -1 Then Return
         MyConverter.IsExited = True
         MyConverter.Result = SelectedIndex
         Close()

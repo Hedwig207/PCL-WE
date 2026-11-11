@@ -560,6 +560,7 @@ NextInner:
             GoTo SkipLogin
         End If
         '尝试登录
+        If OAuthClientId = "" Then Throw New Exception("$未配置微软登录所需的 Client ID，无法进行正版登录。" & vbCrLf & "请在 [设置 → 系统] 中填写 微软 Client ID，或设置环境变量 PCL_MS_CLIENT_ID 后再试。")
         Dim OAuthTokens As (OAuthAccessToken As String, OAuthRefreshToken As String)
         If Input.OAuthRefreshToken = "" Then
             '无 RefreshToken

@@ -6,7 +6,71 @@
     xmlns:local="clr-namespace:PCL"
     xmlns:sys="clr-namespace:System;assembly=mscorlib"
     PanScroll="PanBack">
-    <local:MyScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" x:Name="PanBack">
-        <TextBlock Text="龙猫把百宝箱删了qwq，我在努力复刻，请大家谅解（磕头）" HorizontalAlignment="Center" FontSize="15" Height="30" VerticalAlignment="Center" />
-    </local:MyScrollViewer>
+    <Grid>
+        <local:MyScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" x:Name="PanBack">
+            <StackPanel x:Name="PanMain" Margin="25,15,25,10">
+                <local:MyCard Margin="0,0,0,15" Title="奇妙小工具">
+                    <Grid Margin="21,40,21,16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="14" />
+                            <RowDefinition Height="35" />
+                            <RowDefinition Height="10" />
+                            <RowDefinition Height="35" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="7" Text="海德薇塞进去的一些奇奇怪怪的功能，有的时候还真有点用！" FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
+                        <local:MyButton x:Name="BtnLuck" Text="今日人品" Grid.Row="2" Grid.Column="0" Height="35" ColorType="Normal" />
+                        <local:MyButton x:Name="BtnMemory" Text="内存优化" Grid.Row="2" Grid.Column="2" Height="35" ColorType="Normal" />
+                        <local:MyButton x:Name="BtnClear" Text="清理游戏垃圾" Grid.Row="2" Grid.Column="4" Height="35" ColorType="Normal" />
+                        <local:MyButton x:Name="BtnSearch" Text="搜索文件夹" Grid.Row="2" Grid.Column="6" Height="35" ColorType="Normal" />
+                        <local:MyButton x:Name="BtnPack" Text="一键打包" Grid.Row="4" Grid.Column="0" Height="35" ColorType="Normal" />
+                        <local:MyButton x:Name="BtnImport" Text="一键导入" Grid.Row="4" Grid.Column="2" Height="35" ColorType="Normal" />
+                        <local:MyButton x:Name="BtnDontClick" Text="千万别点" Grid.Row="4" Grid.Column="6" Height="35" ColorType="Red" />
+                    </Grid>
+                </local:MyCard>
+
+                <local:MyCard Margin="0,0,0,15" Title="下载自定义文件">
+                    <StackPanel Margin="21,40,21,16">
+                        <TextBlock Text="使用 PCL 的高速多线程下载引擎下载任意文件。请注意，部分网站（例如百度网盘）可能会报错 (403) 已禁止，无法正常下载。" FontSize="12" Opacity="0.65" TextWrapping="Wrap" Margin="0,0,0,15" />
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="35" />
+                                <RowDefinition Height="10" />
+                                <RowDefinition Height="35" />
+                                <RowDefinition Height="10" />
+                                <RowDefinition Height="35" />
+                                <RowDefinition Height="20" />
+                                <RowDefinition Height="35" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="70" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="70" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="下载地址" VerticalAlignment="Center" />
+                            <local:MyTextBox x:Name="TextDownloadUrl" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" VerticalContentAlignment="Center" HintText="请输入文件的下载地址" />
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="保存到" VerticalAlignment="Center" />
+                            <local:MyTextBox x:Name="TextDownloadFolder" Grid.Row="2" Grid.Column="1" VerticalContentAlignment="Center" HintText="选择文件保存到的文件夹" />
+                            <local:MyButton x:Name="BtnSelectFolder" Grid.Row="2" Grid.Column="2" Text="选择" Height="35" Margin="10,0,0,0" ColorType="Normal" />
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="文件名" VerticalAlignment="Center" />
+                            <local:MyTextBox x:Name="TextDownloadName" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" VerticalContentAlignment="Center" HintText="请输入保存的文件名（含后缀）" />
+                            <StackPanel Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <local:MyButton x:Name="BtnDownload" Text="开始下载" Width="100" Height="35" ColorType="Highlight" />
+                                <local:MyButton x:Name="BtnOpenFolder" Text="打开文件夹" Width="100" Height="35" Margin="10,0,0,0" ColorType="Normal" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </local:MyCard>
+            </StackPanel>
+        </local:MyScrollViewer>
+    </Grid>
 </local:MyPageRight>
