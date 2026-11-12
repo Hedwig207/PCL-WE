@@ -27,6 +27,8 @@ Public Class Settings
         New Setting("SystemVersionNoteShown", "", Source:=Sources.Registry),
         New Setting("SystemImportantNoteShown", "", Source:=Sources.Registry),
         New Setting("SystemMigrationShown", "", Source:=Sources.Registry),
+        New Setting("SystemWclUserCount", 0, Source:=Sources.Registry),
+        New Setting("SystemWclReported", False, Source:=Sources.Registry),
         New Setting("SystemJrrpDate", "", Source:=Sources.Registry),
         New Setting("SystemJrrpValue", 0, Source:=Sources.Registry),
         New Setting("SystemCount", 0, Source:=Sources.Registry, Encrypted:=True),

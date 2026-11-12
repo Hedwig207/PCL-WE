@@ -60,7 +60,7 @@ Public Class MyBitmap
     End Sub
     Public Sub New(FilePathOrResourceName As String)
         Try
-            FilePathOrResourceName = FilePathOrResourceName.Replace("pack://application:,,,/images/", PathImage)
+            FilePathOrResourceName = FixImagePath(FilePathOrResourceName)
             If FilePathOrResourceName.StartsWithF(PathImage) Then
                 '使用缓存
                 Static Cache As New Concurrent.ConcurrentDictionary(Of String, MyBitmap)

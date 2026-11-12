@@ -440,7 +440,7 @@ Refresh:
             If Not Settings.Get(Of Boolean)("UiHiddenOtherVote") Then OtherAvaliableCount += 1
             If FrmOtherLeft IsNot Nothing Then
                 FrmOtherLeft.ItemHelp.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenOtherHelp"), Visibility.Collapsed, Visibility.Visible)
-                FrmOtherLeft.ItemFeedback.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenOtherFeedback"), Visibility.Collapsed, Visibility.Visible)
+                FrmOtherLeft.ItemBugReport.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenOtherFeedback"), Visibility.Collapsed, Visibility.Visible)
                 FrmOtherLeft.ItemVote.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenOtherVote"), Visibility.Collapsed, Visibility.Visible)
                 FrmOtherLeft.ItemAbout.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenOtherAbout"), Visibility.Collapsed, Visibility.Visible)
                 FrmOtherLeft.ItemTest.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenOtherTest"), Visibility.Collapsed, Visibility.Visible)
@@ -452,8 +452,12 @@ Refresh:
                     FrmMain.BtnTitleSelect4.Text = "帮助"
                 ElseIf Not Settings.Get(Of Boolean)("UiHiddenOtherAbout") Then
                     FrmMain.BtnTitleSelect4.Text = "关于"
-                Else
+                ElseIf Not Settings.Get(Of Boolean)("UiHiddenOtherTest") Then
                     FrmMain.BtnTitleSelect4.Text = "百宝箱"
+                ElseIf Not Settings.Get(Of Boolean)("UiHiddenOtherFeedback") Then
+                    FrmMain.BtnTitleSelect4.Text = "Bug 反馈"
+                Else
+                    FrmMain.BtnTitleSelect4.Text = "新功能投票"
                 End If
             Else
                 FrmMain.BtnTitleSelect4.Text = "更多"

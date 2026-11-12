@@ -366,6 +366,9 @@
     <Compile Include="Pages\PageOther\PageOtherHelp.xaml.vb">
       <DependentUpon>PageOtherHelp.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Pages\PageOther\PageOtherBugReport.xaml.vb">
+      <DependentUpon>PageOtherBugReport.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Pages\PageDownload\PageDownloadLeft.xaml.vb">
       <DependentUpon>PageDownloadLeft.xaml</DependentUpon>
     </Compile>
@@ -614,6 +617,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Pages\PageOther\PageOtherHelp.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Pages\PageOther\PageOtherBugReport.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

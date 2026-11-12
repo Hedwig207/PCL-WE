@@ -1,5 +1,7 @@
 '由于包含加解密等安全信息，本文件中的部分代码已被删除
 
+Imports System.Text.RegularExpressions
+
 Friend Module ModSecret
 
     '标注 PCL 的不同分支，仅用于替换标记
@@ -186,8 +188,187 @@ Friend Module ModSecret
 
 #Region "更新"
 
+    'PCL WE 的更新来源仓库（对应 Publish-PCLWE.ps1 推送的仓库）
+    Friend Const PclWeRepo As String = "Hedwig207/PCL-WE"
+    Friend Const PclWeUserAgent As String = "PCL-WE-Updater/1.0"
+    Private IsCheckingUpdate As Boolean = False
+
+    ''' <summary>
+    ''' 手动检查更新（联网获取 GitHub 最新发行版）。
+    ''' </summary>
     Friend Sub UpdateCheckByButton()
-        Hint("该版本中不包含更新功能……")
+        If IsCheckingUpdate Then
+            Hint("正在检查更新，请稍候……", HintType.Blue)
+            Return
+        End If
+        IsCheckingUpdate = True
+        Hint("正在联网检查更新……", HintType.Blue)
+        RunInNewThread(
+        Sub()
+            Try
+                Logger.Info($"开始联网检查 PCL WE 更新（当前版本：{VersionBaseName}）")
+                Dim Latest As JObject = QueryLatestRelease()
+                Dim RemoteTag As String = If(Latest("tag_name")?.ToString, "")
+                Dim Body As String = If(Latest("body")?.ToString, "")
+                Dim AssetUrl As String = Nothing
+                Dim AssetName As String = Nothing
+
+                '选择第一个可下载的 exe 发行资产
+                If Latest("assets") IsNot Nothing Then
+                    For Each Asset In CType(Latest("assets"), JArray)
+                        Dim Name As String = If(Asset("name")?.ToString, "")
+                        If Name.EndsWithF(".exe") Then
+                            AssetUrl = Asset("browser_download_url")?.ToString
+                            AssetName = Name
+                            Exit For
+                        End If
+                    Next
+                End If
+
+                Dim HasNewer As Boolean = IsRemoteNewer(RemoteTag)
+                If Not HasNewer Then
+                    RunInUi(Sub() Hint(If(RemoteTag = "", "已是最新版本（未获取到远程版本信息，请检查网络）。", $"已是最新版本：{RemoteTag}"), If(RemoteTag = "", HintType.Red, HintType.Blue)))
+                    Return
+                End If
+                If String.IsNullOrEmpty(AssetUrl) Then
+                    RunInUi(Sub() Hint($"发现新版本 {RemoteTag}，但远程未提供可下载的程序文件，请前往 GitHub 手动下载。", HintType.Red))
+                    RunInUi(Sub() OpenWebsite($"https://github.com/{PclWeRepo}/releases"))
+                    Return
+                End If
+
+                Dim PromptBody As String = Body.Trim()
+                If PromptBody.Length > 500 Then PromptBody = PromptBody.Substring(0, 500) & "……"
+                RunInUi(
+                Sub()
+                    If MyMsgBox($"发现新版本：{RemoteTag}" & vbCrLf & vbCrLf &
+                                If(PromptBody = "", "", "更新内容：" & vbCrLf & PromptBody & vbCrLf & vbCrLf) &
+                                $"即将下载并安装：{AssetName}" & vbCrLf &
+                                "下载完成后启动器会自动重启以完成更新。当前正在进行的游戏操作可能会被中断。",
+                                "发现新版本", "下载并更新", "暂不更新", IsBlue:=True) = 1 Then
+                        DownloadAndApplyUpdate(AssetUrl, AssetName)
+                    Else
+                        Hint("已忽略本次更新。", HintType.Blue)
+                    End If
+                End Sub)
+            Catch ex As Exception
+                Logger.Warn(ex, "检查更新失败")
+                RunInUi(Sub() Hint("检查更新失败：" & If(ex.Message, "网络错误"), HintType.Red))
+            Finally
+                IsCheckingUpdate = False
+            End Try
+        End Sub, "PCLUpdateCheck", ThreadPriority.BelowNormal)
+    End Sub
+
+    ''' <summary>
+    ''' 从 GitHub 获取最新发行版信息（Release API）。
+    ''' </summary>
+    Private Function QueryLatestRelease() As JObject
+        Dim Url As String = $"https://api.github.com/repos/{PclWeRepo}/releases/latest"
+        Dim Headers As String(,) = New String(,) {{"User-Agent", PclWeUserAgent}}
+        Dim Response As String = NetRequestByClientRetry(Url, Headers:=Headers, RequireJson:=True, Accept:="application/vnd.github+json")
+        Dim Json As JObject = JObject.Parse(Response)
+        Return Json
+    End Function
+
+    ''' <summary>
+    ''' 判断远程发行版本号是否比当前版本更新（纯数字分段比较）。
+    ''' </summary>
+    Private Function IsRemoteNewer(RemoteTag As String) As Boolean
+        If String.IsNullOrEmpty(RemoteTag) Then Return False
+        Dim Extract = Function(Txt As String) Regex.Matches(Txt, "\d+").Cast(Of Match).Select(Function(m) Integer.Parse(m.Value)).ToList()
+        Dim Remote As List(Of Integer) = Extract(RemoteTag)
+        Dim Local As List(Of Integer) = Extract(VersionBaseName & " " & VersionCode)
+        For i = 0 To Math.Min(Remote.Count, Local.Count) - 1
+            If Remote(i) > Local(i) Then Return True
+            If Remote(i) < Local(i) Then Return False
+        Next
+        Return Remote.Count > Local.Count
+    End Function
+
+    ''' <summary>
+    ''' 下载更新文件并在确认后自动替换重启。
+    ''' </summary>
+    Private Sub DownloadAndApplyUpdate(AssetUrl As String, AssetName As String)
+        '更新文件放到缓存目录，持久化保存，避免中途关闭丢失
+        Dim TempFolder As String = PathTemp & "Update\"
+        Dim TargetFolder As String = TempFolder
+        DirectoryUtils.Create(TargetFolder)
+        Dim NewExe As String = TargetFolder & AssetName
+
+        Hint("正在下载更新文件……", HintType.Blue)
+        RunInNewThread(
+        Sub()
+            Try
+                Logger.Info($"开始下载更新文件：{AssetName}")
+                NetDownloadByLoader(AssetUrl, NewExe, SimulateBrowserHeaders:=False)
+                If Not VerifyPeHeader(NewExe) Then Throw New Exception("下载的文件不是有效的程序文件，已拒绝安装")
+
+                RunInUi(
+                Sub()
+                    If MyMsgBox("更新文件已下载完成。" & vbCrLf &
+                                "是否立即安装？启动器会先退出，安装完成后会自动重新打开。" & vbCrLf &
+                                "请确保当前没有正在进行的游戏存档操作。",
+                                "安装更新", "立即安装", "稍后安装", IsBlue:=True) = 1 Then
+                        ApplyUpdateArrangeRestart(NewExe)
+                    Else
+                        Hint("已保留更新文件，暂不安装。", HintType.Blue)
+                    End If
+                End Sub)
+            Catch ex As Exception
+                Logger.Error(ex, "下载更新失败")
+                RunInUi(Sub() Hint("下载更新失败：" & If(ex.Message, "网络错误"), HintType.Red))
+            End Try
+        End Sub, "PCLUpdateDownload", ThreadPriority.BelowNormal)
+    End Sub
+
+    ''' <summary>
+    ''' 校验文件是否为 PE 可执行文件（MZ 头）。
+    ''' </summary>
+    Private Function VerifyPeHeader(FilePath As String) As Boolean
+        Try
+            Using Stream As New IO.FileStream(FilePath, IO.FileMode.Open, IO.FileAccess.Read)
+                If Stream.Length < 2 Then Return False
+                Dim Bytes(1) As Byte
+                Stream.Read(Bytes, 0, 2)
+                Return Bytes(0) = CByte(AscW("M")) AndAlso Bytes(1) = CByte(AscW("Z"))
+            End Using
+        Catch
+            Return False
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' 安排更新：借助 cmd 等待本进程退出后替换 exe 并重新启动。
+    ''' </summary>
+    Friend Sub ApplyUpdateArrangeRestart(NewExe As String)
+        IsUpdateWaitingRestart = True
+        Try
+            Dim CurrentExe As String = PathExe
+            Dim CurrentPid As Integer = Process.GetCurrentProcess().Id
+            '旧版需要更新器协作；我们直接使用 cmd 脚本完成替换与重启
+            Dim Cmd As String = PathTemp & "WCL Update.cmd"
+            Dim Q As String = """" ' 一个英文双引号
+            Dim Script As String =
+                "@echo off" & vbCrLf &
+                "ping 127.0.0.1 -n 3 >nul" & vbCrLf &
+                "taskkill /f /pid " & CurrentPid & " >nul 2>&1" & vbCrLf &
+                "timeout /t 1 /nobreak >nul" & vbCrLf &
+                "move /y " & Q & NewExe & Q & " " & Q & CurrentExe & Q & " >nul 2>&1" & vbCrLf &
+                "start " & Q & Q & " " & Q & CurrentExe & Q & vbCrLf &
+                "del /f /q " & Q & "%~f0" & Q & " >nul 2>&1"
+            IO.File.WriteAllText(Cmd, Script, New Text.UTF8Encoding(True))
+            Dim StartInfo As New ProcessStartInfo("cmd.exe", $"/c ""{Cmd}""")
+            StartInfo.UseShellExecute = False
+            StartInfo.CreateNoWindow = True
+            StartInfo.WindowStyle = ProcessWindowStyle.Hidden
+            Process.Start(StartInfo)
+            '让主窗口尽快退出，由 cmd 完成后续替换与重启
+            Application.Current.Dispatcher.BeginInvoke(Sub() Application.Current.Shutdown())
+        Catch ex As Exception
+            Logger.Error(ex, "安排更新重启失败")
+            IsUpdateWaitingRestart = False
+            Hint("安排更新失败：" & ex.Message, HintType.Red)
+        End Try
     End Sub
 
     Friend IsUpdateWaitingRestart As Boolean = False
@@ -208,14 +389,131 @@ Friend Module ModSecret
 
 #Region "联网配置"
 
+    'PCL-WE-service 服务仓库：负责 PCL WE 的各项在线服务
+    Public Const PclWeServiceRepo As String = "Hedwig207/PCL-WE-service"
+    Public Const PclWeServiceConfigBranch As String = "main"
+    Private Const ServiceConfigFileName As String = "launcher-config.json"
+    Private ReadOnly UserRecordLock As New Object()
+    '用户记录器的计数地址（从服务仓库的配置文件中读取，未配置时禁用）
+    Private UserRecordHitUrl As String = ""
+    Private UserRecordGetUrl As String = ""
+    Private UserRecordCountKey As String = "count"
+
     ''' <summary>
     ''' 联网获取的配置信息。
     ''' 若获取失败或仍在获取中，可能为 Nothing。
     ''' </summary>
     Public ServerConfig As JObject
 
-    Public ServerLoader As New LoaderTask(Of Integer, Integer)("PCL 配置更新", Sub() Logger.Info("该版本中不包含更新通知功能……"), Priority:=ThreadPriority.BelowNormal) With
+    Public ServerLoader As New LoaderTask(Of Integer, Integer)("PCL 配置更新", AddressOf LoadServerConfig, Priority:=ThreadPriority.BelowNormal) With
         {.ReloadTimeout = 1000 * 60 * 60} '超时 1 小时
+
+    ''' <summary>
+    ''' 联网拉取 PCL-WE-service 提供的启动器配置（含用户记录器等服务信息）。
+    ''' </summary>
+    Private Sub LoadServerConfig(Loader As LoaderTask(Of Integer, Integer))
+        Try
+            Logger.Info("开始联网获取 PCL WE 服务配置……")
+            Dim Url As String = $"https://raw.githubusercontent.com/{PclWeServiceRepo}/{PclWeServiceConfigBranch}/{ServiceConfigFileName}"
+            Dim Headers As String(,) = New String(,) {{"User-Agent", PclWeUserAgent}}
+            Dim Response As String = NetRequestByClientRetry(Url, Headers:=Headers, RequireJson:=True)
+            ServerConfig = JObject.Parse(Response)
+            ParseUserRecordConfig(ServerConfig)
+            Logger.Info("PCL WE 服务配置获取成功，用户记录器计数地址：" & If(UserRecordGetUrl = "", "（未设置，用户记录器已禁用）", UserRecordGetUrl))
+            If UserRecordGetUrl <> "" Then ReportUserRecord("start")
+        Catch ex As Exception
+            Logger.Warn(ex, "获取 PCL WE 服务配置失败，相关服务将被禁用")
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 解析服务配置中的用户记录器信息。
+    ''' 支持两种写法：对象形式（hit-url / get-url / count-key），或单个地址字符串形式。
+    ''' </summary>
+    Private Sub ParseUserRecordConfig(Config As JObject)
+        UserRecordHitUrl = ""
+        UserRecordGetUrl = ""
+        UserRecordCountKey = "count"
+        Dim Node As JToken = Nothing
+        If Config.TryGetValue("user-record", Node) AndAlso Node IsNot Nothing AndAlso Node.Type = JTokenType.Object Then
+            Dim Obj As JObject = CType(Node, JObject)
+            UserRecordHitUrl = Obj.Value(Of String)("hit-url")
+            UserRecordGetUrl = Obj.Value(Of String)("get-url")
+            Dim CountKey As String = Obj.Value(Of String)("count-key")
+            If Not String.IsNullOrEmpty(CountKey) Then UserRecordCountKey = CountKey
+        Else
+            '兼容旧写法：单个地址，计数与读取都走同一个地址
+            For Each Key In {"user-record-endpoint", "user-recorder", "user_record_endpoint"}
+                Dim Value As String = Config(Key)?.ToString
+                If Not String.IsNullOrEmpty(Value) Then
+                    UserRecordHitUrl = Value
+                    UserRecordGetUrl = Value
+                    Exit For
+                End If
+            Next
+        End If
+        If String.IsNullOrEmpty(UserRecordHitUrl) Then UserRecordHitUrl = UserRecordGetUrl
+    End Sub
+
+    ''' <summary>
+    ''' 用户记录器：向 PCL-WE 服务计数一次，并取回累计用户数。
+    ''' 仅在遥测开启、且服务仓库配置了计数地址时才会真正请求；否则静默忽略。
+    ''' 同一台设备只在首次成功计数时自增一次，之后仅读取总数，因此统计的是用户数而非启动次数。
+    ''' </summary>
+    Friend Sub ReportUserRecord([Event] As String)
+        If Not Settings.Get(Of Boolean)("SystemSystemTelemetry") Then Return '与普通遥测同步遵循用户的遥测开关
+        If String.IsNullOrEmpty(UserRecordGetUrl) Then Return '服务端尚未配置
+        SyncLock UserRecordLock
+            Try
+                Dim IsFirstReport As Boolean = Not Settings.Get(Of Boolean)("SystemWclReported")
+                Dim Url As String = If(IsFirstReport AndAlso Not String.IsNullOrEmpty(UserRecordHitUrl), UserRecordHitUrl, UserRecordGetUrl)
+                Logger.Info($"PCL WE 用户记录器请求（{[Event]}，{If(IsFirstReport, "计入新用户", "仅读取总数")}）：{Url}")
+                Dim Headers As String(,) = New String(,) {{"User-Agent", PclWeUserAgent}}
+                Dim Response As String = NetRequestByClient(Url, Headers:=Headers, MakeLog:=False, Timeout:=8000)
+                Dim UserCount As Integer = ParseUserCount(Response)
+                If UserCount > 0 Then
+                    Settings.Set("SystemWclUserCount", UserCount)
+                    If IsFirstReport Then Settings.Set("SystemWclReported", True)
+                End If
+            Catch ex As Exception
+                Logger.Warn(ex, "PCL WE 用户记录器请求失败")
+            End Try
+        End SyncLock
+    End Sub
+
+    ''' <summary>
+    ''' 从计数接口的响应中提取累计用户数（优先使用配置指定的键名，并兼容常见键名）。
+    ''' </summary>
+    Private Function ParseUserCount(Response As String) As Integer
+        If String.IsNullOrEmpty(Response) Then Return 0
+        Try
+            Dim Json As JObject = JObject.Parse(Response.Trim)
+            For Each Key In {UserRecordCountKey, "count", "value", "users", "user_count", "userCount", "total"}
+                If String.IsNullOrEmpty(Key) Then Continue For
+                Dim Token As JToken = Nothing
+                If Json.TryGetValue(Key, Token) AndAlso Token IsNot Nothing Then
+                    Dim Result As Integer
+                    If Integer.TryParse(Token.ToString, Result) AndAlso Result > 0 Then Return Result
+                End If
+            Next
+        Catch
+            '响应不是 JSON 时忽略
+        End Try
+        Return 0
+    End Function
+
+    ''' <summary>
+    ''' 获取设备识别码。首次启动时生成并持久保存，之后保持不变。
+    ''' 它同时作为加密配置项的密钥，因此不能在每次启动时改变。
+    ''' </summary>
+    Friend Function GetIdentify() As String
+        Dim Value As String = Settings.Get(Of String)("Identify")
+        If String.IsNullOrEmpty(Value) Then
+            Value = Guid.NewGuid().ToString("N")
+            Settings.Set("Identify", Value)
+        End If
+        Return Value
+    End Function
 
 #End Region
 
@@ -231,13 +529,6 @@ Friend Module ModSecret
     End Sub
     Friend Sub GeneratePotatoCode()
     End Sub
-
-    ''' <summary>
-    ''' 获取设备识别码。
-    ''' </summary>
-    Friend Function GetIdentify() As String
-        Return "0000-0000-0000-0000"
-    End Function
 
 #End Region
 

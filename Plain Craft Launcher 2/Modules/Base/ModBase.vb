@@ -6,16 +6,16 @@ Public Module ModBase
 #Region "声明"
 
     '下列版本信息由更新器自动修改
-    Public Const VersionBaseName As String = "WCL beta1.0-intest" '显示用版本名
+    Public Const VersionBaseName As String = "WCL beta1.1-intest" '显示用版本名
     Public Const CommitHash As String = "" 'Commit Hash，由 GitHub Workflow 自动替换
 #If RELEASE Then
     Public Const VersionCode As Integer = 413 '正式版
 #Else
-    Public Const VersionCode As Integer = 414 '内测版
+    Public Const VersionCode As Integer = 415 '内测版
 #End If
 
     '版本信息
-    Public Const VersionDisplay As String = "WCL beta1.0-intest"
+    Public Const VersionDisplay As String = "WCL beta1.1-intest"
 #If DEBUG Then
     Public Const BuildTypeDisplay As String = "内测版"
     Public Const BuildType As BuildTypes = BuildTypes.Debug
@@ -44,6 +44,24 @@ Public Module ModBase
     ''' 程序内嵌图片文件夹路径，以 / 结尾。
     ''' </summary>
     Public PathImage As String = "pack://application:,,,/PCL WE;component/Images/"
+    ''' <summary>
+    ''' 修正图片地址中的旧程序集名或旧写法。
+    ''' 旧版本会把 pack://application:,,,/Plain Craft Launcher 2;component/Images/... 这类完整地址
+    ''' 写入配置文件，程序集改名后这些地址会失效，并被当成文件路径打开而报错，这里统一重定向到当前程序集。
+    ''' </summary>
+    Public Function FixImagePath(Path As String) As String
+        If String.IsNullOrEmpty(Path) Then Return Path
+        Const PackPrefix As String = "pack://application:,,,/"
+        If Not Path.StartsWithF(PackPrefix, True) Then Return Path
+        '形如 pack://application:,,,/程序集名;component/Images/xxx.png
+        Dim ComponentMark As String = ";component/Images/"
+        Dim Index As Integer = Path.IndexOfF(ComponentMark, True)
+        If Index >= 0 Then Return PathImage & Path.Substring(Index + ComponentMark.Length)
+        '形如 pack://application:,,,/images/xxx.png
+        Dim ResourceMark As String = PackPrefix & "images/"
+        If Path.StartsWithF(ResourceMark, True) Then Return PathImage & Path.Substring(ResourceMark.Length)
+        Return Path
+    End Function
     ''' <summary>
     ''' 程序的缓存文件夹路径，以 \ 结尾。
     ''' </summary>

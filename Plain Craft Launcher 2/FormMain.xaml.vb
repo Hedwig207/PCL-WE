@@ -255,6 +255,15 @@ Public Class FormMain
                 BugCount += 10
             End If
         End If
+        'PCL WE 专属更新日志（内测版与正式版都展示）
+        If LastVersion < 415 Then 'WCL beta1.1-intest
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(5, "新增：联网检查更新，可直接从 GitHub 下载最新发行版并自动替换重启（入口在「关于」页 PCL WE 名称旁）"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(4, "新增：匿名用户记录器，统计启动器的累计使用人数；每台设备仅首次启动计入一次，不涉及账号、存档等个人信息"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(2, "优化：欢迎、版本说明、重要事项等提示改为每次重新编译后各显示一次，不再重复打扰"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(2, "优化：启动时的检测提示始终置于最后一个，避免被其他弹窗遮挡"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(1, "修复：部分版本偶发出现「加载版本图标失败」报错"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(1, "移除：历史遗留的欧皇彩、滑稽彩迁移提示弹窗"))
+        End If
         '整理更新日志文本
         Dim ContentList As New List(Of String)
         Dim SortedFeatures = FeatureList.OrderByDescending(Function(f) f.Key).ToList
@@ -273,8 +282,8 @@ Public Class FormMain
         '输出更新日志
         RunInNewThread(
         Sub()
-            If MyMsgBox(Content, "PCL 已更新至" & VersionDisplay, "确定", "完整更新日志") = 2 Then
-                OpenWebsite("https://meloong.com/afd/a/LTCat?tab=feed")
+            If MyMsgBox(Content, "PCL WE 已更新至 " & VersionDisplay, "确定", "完整更新日志") = 2 Then
+                OpenWebsite($"https://github.com/{PclWeRepo}/releases")
             End If
         End Sub, "UpdateLog Output")
     End Sub
@@ -466,17 +475,15 @@ Public Class FormMain
                          IsBlue:=True)
                 Settings.Set("SystemVersionNoteShown", ModMigration.GetCompileStamp())
             End If
-            '检查并迁移磁盘上的 Minecraft 文件夹与旧 PCL 配置
-            ModMigration.ScanAndMigrate()
-            '重要事项声明（每次重新编译后显示一次，位置与原来保持一致）
+            '重要事项声明（每次重新编译后显示一次）
             If Settings.Get(Of String)("SystemImportantNoteShown") <> ModMigration.GetCompileStamp() Then
                 MyMsgBox("使用 PCL WE 前，请先了解以下重要事项：" & vbCrLf & vbCrLf &
                          "【需要自行配置】" & vbCrLf &
                          "- CurseForge 下载：需先在【设置 → 系统 → 开源版密钥】中填入自己的 CurseForge API Key" & vbCrLf &
                          "- 正版登录：需先在【设置 → 系统 → 开源版密钥】中填入自己的微软 Client ID" & vbCrLf & vbCrLf &
-                         "【本版本暂不包含】" & vbCrLf &
-                         "- 更新与联网通知：本版本不含在线更新，新版本需要手动替换程序文件" & vbCrLf &
-                         "- 主题切换：仅开放大主题与自定义配色，隐藏主题未在本版本开放" & vbCrLf & vbCrLf &
+                         "【网络功能说明】" & vbCrLf &
+                         "- 启动器会联网检查 GitHub 上的最新发行版并支持在线更新" & vbCrLf &
+                         "- 启动器会上报匿名的使用数据到 PCL-WE 服务（可在设置中关闭）" & vbCrLf & vbCrLf &
                          "【使用前请注意】" & vbCrLf &
                          "- 百宝箱的「一键打包」会把登录数据、邮箱数据与全部配置一起写入 .wclconfig，请勿把生成的整合包分享给他人" & vbCrLf &
                          "- 百宝箱的「搜索文件夹」会扫描所有磁盘，耗时较长，检测期间可以正常使用启动器" & vbCrLf & vbCrLf &
@@ -484,6 +491,8 @@ Public Class FormMain
                          "重要事项", "我已了解", IsBlue:=True)
                 Settings.Set("SystemImportantNoteShown", ModMigration.GetCompileStamp())
             End If
+            '检查并迁移磁盘上的 Minecraft 文件夹与旧 PCL 配置（检测弹窗始终置于最后一个）
+            ModMigration.ScanAndMigrate()
         End Sub, "初始化", ThreadPriority.Lowest)
 
         Logger.Info($"第三阶段加载用时：{GetTimeMs() - ApplicationStartTick} ms")
@@ -532,16 +541,12 @@ Public Class FormMain
             Dim UnlockedTheme As New List(Of String)(Settings.Get(Of String)("UiLauncherThemeHide2").ToString.Split("|"))
             UnlockedTheme.Remove("13")
             Settings.Set("UiLauncherThemeHide2", UnlockedTheme.Join("|"c))
-            MyMsgBox("由于新版 PCL 修改了欧皇彩的解锁方式，你需要重新解锁欧皇彩。" & vbCrLf &
-                     "多谢各位的理解啦！", "重新解锁提醒")
         End If
         '重置滑稽彩
         If LastVersionCode <= 152 AndAlso Settings.Get(Of String)("UiLauncherThemeHide2").ToString.Split("|").Contains("12") Then
             Dim UnlockedTheme As New List(Of String)(Settings.Get(Of String)("UiLauncherThemeHide2").ToString.Split("|"))
             UnlockedTheme.Remove("12")
             Settings.Set("UiLauncherThemeHide2", UnlockedTheme.Join("|"c))
-            MyMsgBox("由于新版 PCL 修改了滑稽彩的解锁方式，你需要重新解锁滑稽彩。" & vbCrLf &
-                     "多谢各位的理解啦！", "重新解锁提醒")
         End If
         '移动自定义皮肤
         If LastVersionCode <= 161 AndAlso FileUtils.Exists(Paths.Base & "PCL\CustomSkin.png") AndAlso Not FileUtils.Exists(Paths.AppDataThenName & "CustomSkin.png") Then
@@ -656,7 +661,7 @@ Public Class FormMain
         If ReturnCode = ProcessReturnValues.Exception Then
             If Not IsLogShown Then
                 FeedbackInfo()
-                Logger.Info("请在 https://github.com/Meloong-Git/PCL/issues 提交错误报告，以便于作者解决此问题！")
+                Logger.Info($"请在 https://github.com/{PclWeRepo}/issues 提交错误报告，以便于作者解决此问题！")
                 IsLogShown = True
                 StartProcess(Paths.Base & "PCL\Log1.txt")
             End If
@@ -1275,6 +1280,7 @@ Public Class FormMain
         OtherHelp = 0
         OtherAbout = 1
         OtherTest = 2
+        OtherBugReport = 3
         InstanceOverall = 0
         InstanceSetup = 1
         InstanceModify = 2
