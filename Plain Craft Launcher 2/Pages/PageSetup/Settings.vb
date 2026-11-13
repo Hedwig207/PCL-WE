@@ -133,6 +133,7 @@ Public Class Settings
         New Setting("ToolDownloadCert", False, Source:=Sources.Registry, OnChanged:=AddressOf ModNet.ShouldValidateSslCertificateOnLogin),
         New Setting("ToolDownloadMod", 2, Source:=Sources.Registry),
         New Setting("ToolModLocalNameStyle", 0, Source:=Sources.Registry),
+        New Setting("ToolImeFix", True, Source:=Sources.Registry, OnChanged:=AddressOf ModImeFix.OnSettingChanged),
         New Setting("ToolUpdateRelease", False, Source:=Sources.Registry),
         New Setting("ToolUpdateSnapshot", False, Source:=Sources.Registry),
         New Setting("ToolUpdateReleaseLast", "", Source:=Sources.Registry),

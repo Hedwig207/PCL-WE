@@ -17,6 +17,8 @@
                             <RowDefinition Height="35" />
                             <RowDefinition Height="10" />
                             <RowDefinition Height="35" />
+                            <RowDefinition Height="16" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -35,6 +37,9 @@
                         <local:MyButton x:Name="BtnPack" Text="一键打包" Grid.Row="4" Grid.Column="0" Height="35" ColorType="Normal" />
                         <local:MyButton x:Name="BtnImport" Text="一键导入" Grid.Row="4" Grid.Column="2" Height="35" ColorType="Normal" />
                         <local:MyButton x:Name="BtnDontClick" Text="千万别点" Grid.Row="4" Grid.Column="6" Height="35" ColorType="Red" />
+                        <local:MyCheckBox x:Name="CheckImeFix" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="7" Height="22" Margin="-1,0,0,0"
+                                          Text="MC 输入法修复：游戏窗口内锁定英文输入法，避免按 Shift 时卡输入；按 T 或 / 打开聊天框后可正常切换"
+                                          local:SettingService.Key="ToolImeFix" />
                     </Grid>
                 </local:MyCard>
 

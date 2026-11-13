@@ -256,6 +256,9 @@ Public Class FormMain
             End If
         End If
         'PCL WE 专属更新日志（内测版与正式版都展示）
+        If LastVersion < 416 Then 'WCL beta1.1-intest-emfix_1
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(4, "新增：MC 输入法修复，游戏窗口内自动锁定英文输入法，避免按 Shift 潜行时卡输入；按 T 或 / 打开聊天框后仍可正常切换中文"))
+        End If
         If LastVersion < 415 Then 'WCL beta1.1-intest
             FeatureList.Add(New KeyValuePair(Of Integer, String)(5, "新增：联网检查更新，可直接从 GitHub 下载最新发行版并自动替换重启（入口在「关于」页 PCL WE 名称旁）"))
             FeatureList.Add(New KeyValuePair(Of Integer, String)(4, "新增：匿名用户记录器，统计启动器的累计使用人数；每台设备仅首次启动计入一次，不涉及账号、存档等个人信息"))

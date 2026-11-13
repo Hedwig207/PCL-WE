@@ -7,6 +7,7 @@ Public Class PageOtherTest
         If IsLoaded Then Return
         IsLoaded = True
         TextDownloadFolder.Text = Paths.Base & "PCL\Downloads\"
+        SettingService.RefreshSettings(CheckImeFix)
         PanBack.ScrollToHome()
     End Sub
 
@@ -55,6 +56,19 @@ Public Class PageOtherTest
     ''' </summary>
     Private Sub BtnClear_Click(sender As Object, e As MouseButtonEventArgs) Handles BtnClear.Click
         RubbishClear()
+    End Sub
+
+    ''' <summary>
+    ''' 百宝箱 · MC 输入法修复开关。
+    ''' 具体的锁定与解除逻辑由 ModImeFix 在设置项改变时执行，这里只负责提示。
+    ''' </summary>
+    Private Sub CheckImeFix_Change(sender As Object, user As Boolean) Handles CheckImeFix.Change
+        If Not user Then Return
+        If CheckImeFix.Checked Then
+            Hint("已开启 MC 输入法修复", HintType.Blue)
+        Else
+            Hint("已关闭 MC 输入法修复", HintType.Blue)
+        End If
     End Sub
 
     ''' <summary>

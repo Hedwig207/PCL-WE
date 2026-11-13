@@ -259,7 +259,10 @@ Public Module ModWatcher
         ''' 窗口检查是否已经完成。这不一定代表着找到了窗口（如果没有找到，IsWindowAppeared 仍为 False）。
         ''' </summary>
         Private IsWindowFinished As Boolean = False
-        Private WindowHandle As IntPtr
+        ''' <summary>
+        ''' Minecraft 窗口的句柄。未找到窗口时为 IntPtr.Zero。
+        ''' </summary>
+        Public WindowHandle As IntPtr
         Private Sub TimerWindow()
             Try
                 If GameProcess.HasExited Then Return
@@ -281,6 +284,8 @@ Public Module ModWatcher
                     WindowHandle = MinecraftWindowHandle
                     WatcherLog($"Minecraft 窗口已加载：{MinecraftWindowName}（{MinecraftWindowHandle.ToInt64}）")
                     IsWindowFinished = True
+                    '输入法修复
+                    ImeFixStart(WindowHandle, GameProcess)
                     '最大化
                     If Settings.Get(Of Integer)("LaunchArgumentWindowType") = 4 Then
                         RunInNewThread(
