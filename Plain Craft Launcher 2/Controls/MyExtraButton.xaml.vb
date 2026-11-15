@@ -33,6 +33,25 @@ Public Class MyExtraButton
             If value = _Logo Then Return
             _Logo = value
             Path.Data = (New GeometryConverter).ConvertFromString(value)
+            If Not String.IsNullOrEmpty(value) Then ImgLogo.Visibility = Visibility.Collapsed
+        End Set
+    End Property
+    '位图图标
+    Private _LogoBitmap As String = ""
+    Public Property LogoBitmap As String
+        Get
+            Return _LogoBitmap
+        End Get
+        Set(value As String)
+            If value = _LogoBitmap Then Return
+            _LogoBitmap = value
+            If String.IsNullOrEmpty(value) Then
+                ImgLogo.Visibility = Visibility.Collapsed
+                Return
+            End If
+            Path.Data = Nothing
+            ImgLogo.Source = New MyBitmap(value)
+            ImgLogo.Visibility = Visibility.Visible
         End Set
     End Property
     Private _LogoScale As Double = 1
@@ -43,6 +62,7 @@ Public Class MyExtraButton
         Set(value As Double)
             _LogoScale = value
             If Not IsNothing(Path) Then Path.RenderTransform = New ScaleTransform With {.ScaleX = LogoScale, .ScaleY = LogoScale}
+            If Not IsNothing(ImgLogo) Then ImgLogo.RenderTransform = New ScaleTransform With {.ScaleX = LogoScale, .ScaleY = LogoScale}
         End Set
     End Property
     Private _Show As Boolean = False

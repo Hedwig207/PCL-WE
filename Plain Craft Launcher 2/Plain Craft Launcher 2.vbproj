@@ -197,6 +197,7 @@
     <Compile Include="Controls\MyComboBox.vb" />
     <Compile Include="Controls\MyComboBoxItem.vb" />
     <Compile Include="Controls\MyCard.vb" />
+    <Compile Include="Controls\GlassWeather.vb" />
     <Compile Include="Controls\MyExtraTextButton.xaml.vb">
       <DependentUpon>MyExtraTextButton.xaml</DependentUpon>
     </Compile>
@@ -254,10 +255,12 @@
     <Compile Include="GlobalSuppressions.vb" />
     <Compile Include="Modules\Minecraft\ModCrash.vb" />
     <Compile Include="Modules\ModMusic.vb" />
+    <Compile Include="Modules\ModJukebox.vb" />
     <Compile Include="Modules\ModDevelop.vb" />
     <Compile Include="Modules\Minecraft\ModWatcher.vb" />
     <Compile Include="Modules\Minecraft\ModImeFix.vb" />
     <Compile Include="Modules\ModSecret.vb" />
+    <Compile Include="Modules\ModGlass.vb" />
     <Compile Include="Pages\PageDownload\Resource\PageResource.xaml.vb">
       <DependentUpon>PageResource.xaml</DependentUpon>
     </Compile>
@@ -369,6 +372,9 @@
     </Compile>
     <Compile Include="Pages\PageOther\PageOtherBugReport.xaml.vb">
       <DependentUpon>PageOtherBugReport.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\PageOther\PageOtherJukebox.xaml.vb">
+      <DependentUpon>PageOtherJukebox.xaml</DependentUpon>
     </Compile>
     <Compile Include="Pages\PageDownload\PageDownloadLeft.xaml.vb">
       <DependentUpon>PageDownloadLeft.xaml</DependentUpon>
@@ -625,6 +631,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Pages\PageOther\PageOtherJukebox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Pages\PageDownload\PageDownloadLeft.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -761,6 +771,9 @@
   <ItemGroup>
     <Resource Include="Images\icon.ico" />
     <Resource Include="Images\SplashLogo.png" />
+    <Resource Include="Images\DefaultBackground.png" />
+    <Resource Include="Images\DayBackground.png" />
+    <Resource Include="Images\NightBackground.png" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Resources\Font.ttf" />
@@ -964,4 +977,10 @@
 
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
+  <Target Name="CopyJukeboxAssets" AfterTargets="Build" Condition="Exists('..\musicassets')">
+    <ItemGroup>
+      <JukeboxAssetFile Include="..\musicassets\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(JukeboxAssetFile)" DestinationFiles="@(JukeboxAssetFile->'$(TargetDir)PCL\musicassets\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

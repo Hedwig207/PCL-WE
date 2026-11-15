@@ -5,6 +5,18 @@ Public Class PageSetupUI
         PanBack.ScrollToHome()
         ThemeCheckAll(True)
 
+        '初始化日夜切换时间段下拉框
+        If ComboDayStart.Items.Count = 0 Then
+            For i As Integer = 0 To 23
+                Dim DayItem As New MyComboBoxItem With {.Content = $"{i:00}:00"}
+                SettingService.SetValue(DayItem, i.ToString())
+                ComboDayStart.Items.Add(DayItem)
+                Dim NightItem As New MyComboBoxItem With {.Content = $"{i:00}:00"}
+                SettingService.SetValue(NightItem, i.ToString())
+                ComboNightStart.Items.Add(NightItem)
+            Next
+        End If
+
         AniControlEnabled += 1
         Refresh() '#4826
         AniControlEnabled -= 1
@@ -33,6 +45,10 @@ Public Class PageSetupUI
             '背景音乐
             MusicRefreshUI()
 
+            '磨砂玻璃
+            PanGlassDetail.Visibility = If(CheckGlass.Checked, Visibility.Visible, Visibility.Collapsed)
+            RefreshGlassWeatherUI()
+
             '主页
             OnMainPageTypeChanged()
         Catch ex As NullReferenceException
@@ -53,6 +69,26 @@ Public Class PageSetupUI
         Refresh()
     End Sub
 
+    '磨砂玻璃
+    Private Sub CheckGlass_Change(sender As Object, user As Boolean) Handles CheckGlass.Change
+        PanGlassDetail.Visibility = If(CheckGlass.Checked, Visibility.Visible, Visibility.Collapsed)
+        CardGlass.TriggerForceResize()
+        RefreshGlassWeatherUI()
+    End Sub
+    Private Sub BtnGlassWeatherRefresh_Click(sender As Object, e As EventArgs) Handles BtnGlassWeatherRefresh.Click
+        LabGlassWeatherStatus.Text = "正在获取天气信息……"
+        ModGlass.RefreshWeatherNow()
+    End Sub
+
+    Private Sub CheckThemeDark_Change(sender As Object, user As Boolean) Handles CheckThemeDark.Change
+        RefreshDayNightUI()
+    End Sub
+
+    Public Sub RefreshGlassWeatherUI()
+        If IsNothing(LabGlassWeatherStatus) Then Return
+        LabGlassWeatherStatus.Text = ModGlass.WeatherSummary
+    End Sub
+
     '背景图片
     Private Sub BtnUIBgOpen_Click(sender As Object, e As EventArgs) Handles BtnBackgroundOpen.Click
         OpenExplorer(Paths.Base & "PCL\Pictures\")
@@ -60,29 +96,64 @@ Public Class PageSetupUI
     Private Sub BtnBackgroundRefresh_Click(sender As Object, e As EventArgs) Handles BtnBackgroundRefresh.Click
         BackgroundRefresh(True, True)
     End Sub
-    Public Sub BackgroundRefreshUI(Show As Boolean, Count As Integer)
-        If IsNothing(PanBackgroundOpacity) Then Return
-        If Show Then
-            PanBackgroundOpacity.Visibility = Visibility.Visible
-            PanBackgroundBlur.Visibility = Visibility.Visible
-            PanBackgroundSuit.Visibility = Visibility.Visible
-            BtnBackgroundClear.Visibility = Visibility.Visible
-            CardBackground.Title = "背景图片（" & Count & " 张）"
+    Public Sub RefreshDayNightUI()
+        If IsNothing(CardBackground) Then Return
+        Dim Source As Integer = Settings.Get(Of Integer)("UiBackgroundSource")
+        Dim Switch As Integer = Settings.Get(Of Integer)("UiBackgroundSwitch")
+        Dim IsAuto As Boolean = Settings.Get(Of Integer)("UiThemeMode") = 0
+        '日夜切换相关
+        PanDayNightTime.Visibility = If(IsAuto, Visibility.Visible, Visibility.Collapsed)
+        CheckThemeDark.Visibility = If(Settings.Get(Of Integer)("UiThemeMode") = 1, Visibility.Collapsed, Visibility.Visible)
+        ComboBackgroundSwitch.Visibility = If(Source = 2, Visibility.Collapsed, Visibility.Visible)
+        BtnBackgroundNext.Visibility = If(Source = 2 OrElse Switch <> 2, Visibility.Collapsed, Visibility.Visible)
+        '自定义文件夹相关
+        Dim IsCustom As Visibility = If(Source = 1, Visibility.Visible, Visibility.Collapsed)
+        BtnBackgroundOpen.Visibility = IsCustom
+        BtnBackgroundRefresh.Visibility = If(Source = 1 AndAlso Switch <> 2, Visibility.Visible, Visibility.Collapsed)
+        BtnBackgroundClear.Visibility = IsCustom
+        '背景参数
+        Dim ShowParam As Visibility = If(Source = 2, Visibility.Collapsed, Visibility.Visible)
+        PanBackgroundOpacity.Visibility = ShowParam
+        PanBackgroundBlur.Visibility = ShowParam
+        PanBackgroundSuit.Visibility = ShowParam
+        '状态
+        Dim DarkNow As Boolean = IsDarkTheme
+        LabDayNightStatus.Text = $"当前处于{ModGlass.DayNightText}模式（{Date.Now.ToString("HH:mm")}）" & If(DarkNow, " · 深色主题", "")
+        If Source = 2 Then
+            LabBackgroundStatus.Text = "未使用任何壁纸"
+        ElseIf Source = 1 Then
+            Dim Count As Integer = ModGlass.GetPictures().Count
+            LabBackgroundStatus.Text = If(Count > 0, $"自定义壁纸（{Count} 张）", "自定义壁纸（文件夹为空，已回退内置壁纸）")
         Else
-            PanBackgroundOpacity.Visibility = Visibility.Collapsed
-            PanBackgroundBlur.Visibility = Visibility.Collapsed
-            PanBackgroundSuit.Visibility = Visibility.Collapsed
-            BtnBackgroundClear.Visibility = Visibility.Collapsed
-            CardBackground.Title = "背景图片"
+            LabBackgroundStatus.Text = If(ModGlass.DayNightNow = 1, "内置日间壁纸", "内置夜间壁纸")
         End If
+        CardBackground.Title = If(Source = 2, "背景图片（未使用）", "背景图片")
         CardBackground.TriggerForceResize()
     End Sub
     Private Sub BtnBackgroundClear_Click(sender As Object, e As EventArgs) Handles BtnBackgroundClear.Click
         If MyMsgBox("即将删除背景图片文件夹中的所有文件。" & vbCrLf & "此操作不可撤销，是否确定？", "警告",, "取消", IsWarn:=True) = 1 Then
             DirectoryUtils.Delete(Paths.Base & "PCL\Pictures")
-            BackgroundRefresh(False, True)
+            ModGlass.ApplyBackground(False)
             Hint("背景图片已清空！", HintType.Green)
         End If
+    End Sub
+    ''' <summary>
+    ''' 立即更换一次壁纸，用于手动固定模式下切换图片。
+    ''' </summary>
+    Private Sub BtnBackgroundNext_Click(sender As Object, e As EventArgs) Handles BtnBackgroundNext.Click
+        Dim Source As Integer = Settings.Get(Of Integer)("UiBackgroundSource")
+        If Source = 2 Then Return
+        If Source = 1 Then
+            Dim Pic As List(Of String) = ModGlass.GetPictures()
+            If Pic.Any() Then
+                Dim Current As String = Settings.Get(Of String)("UiBackgroundPick")
+                Dim Index As Integer = Pic.IndexOf(Current)
+                ModGlass.SetBackgroundPick(Pic((Index + 1) Mod Pic.Count))
+                Return
+            End If
+        End If
+        '内置壁纸：在日间与夜间之间手动切换
+        ModGlass.SetBackgroundPick(If(Settings.Get(Of String)("UiBackgroundPick") = "Night", "Day", "Night"))
     End Sub
     ''' <summary>
     ''' 刷新背景图片及设置页 UI。
@@ -91,45 +162,11 @@ Public Class PageSetupUI
     ''' <param name="Refresh">是否刷新图片显示。</param>
     Public Shared Sub BackgroundRefresh(IsHint As Boolean, Refresh As Boolean)
         Try
-
-            '获取可用的图片文件
-            DirectoryUtils.Create(Paths.Base & "PCL\Pictures\")
-            Dim Pic As New List(Of String)
-            For Each File In DirectoryUtils.EnumerateFiles(Paths.Base & "PCL\Pictures\", True)
-                Dim Extension As String = PathUtils.GetExtension(File)
-                If Extension <> "ini" AndAlso Extension <> "db" Then Pic.Add(File) '文件夹可能会被加入 .ini 和 thumbs.db
-            Next
-            '加载
-            If Not Pic.Any() Then
-                If Refresh Then
-                    If FrmMain.ImgBack.Visibility = Visibility.Collapsed Then
-                        If IsHint Then Hint("未检测到可用背景图片！", HintType.Red)
-                    Else
-                        FrmMain.ImgBack.Visibility = Visibility.Collapsed
-                        If IsHint Then Hint("背景图片已清除！", HintType.Green)
-                    End If
-                End If
-                If Not IsNothing(FrmSetupUI) Then FrmSetupUI.BackgroundRefreshUI(False, 0)
-            Else
-                If Refresh Then
-                    Dim Address As String = RandomOne(Pic)
-                    Try
-                        Logger.Info($"加载背景图片：{Address}")
-                        FrmMain.ImgBack.Background = New MyBitmap(Address)
-                        FrmMain.ImgBack.Visibility = Visibility.Visible
-                        FrmMain.UpdateBackgroundAndTitleBar()
-                        If IsHint Then Hint("背景图片已刷新：" & PathUtils.GetLastPart(Address), HintType.Green, False)
-                    Catch ex As Exception
-                        If ex.Message.Contains("参数无效") Then
-                            Logger.Error($"刷新背景图片失败，该图片文件可能并非标准格式。{vbCrLf}你可以尝试使用画图打开该文件并重新保存，这会让图片变为标准格式。{vbCrLf}文件：{Address}", LogBehavior.Alert)
-                        Else
-                            Logger.Error(ex, $"刷新背景图片失败（{Address}）", LogBehavior.Alert)
-                        End If
-                    End Try
-                End If
-                If Not IsNothing(FrmSetupUI) Then FrmSetupUI.BackgroundRefreshUI(True, Pic.Count)
+            If Refresh Then
+                ModGlass.ApplyBackground(IsHint)
+            ElseIf Not IsNothing(FrmSetupUI) Then
+                FrmSetupUI.RefreshDayNightUI()
             End If
-
         Catch ex As Exception
             Logger.Error(ex, "刷新背景图片时出现未知错误")
         End Try

@@ -23,7 +23,8 @@ Public Class MyComboBoxItem
             NewFontOpacity = 1
             Time = AnimationTimeIn
         ElseIf IsMouseOver Then
-            NewBackColorName = "ColorBrush8"
+            '深色主题下 ColorBrush8 仍是浅色（供顶栏图标使用），指向态改用更接近表面的 ColorBrush7
+            NewBackColorName = If(ModSecret.IsDarkTheme, "ColorBrush7", "ColorBrush8")
             NewFontOpacity = 1
             Time = AnimationTimeIn
         ElseIf IsEnabled Then

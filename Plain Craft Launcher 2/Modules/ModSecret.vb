@@ -67,6 +67,16 @@ Friend Module ModSecret
     Public ColorHue As Integer = 212, ColorSat As Integer = 75, ColorLightAdjust As Integer = 10, ColorHueTopbarDelta As OneOf(Of Integer, Integer()) = 0
     Public ThemeDontClick As Integer = 0
 
+    ''' <summary>
+    ''' 当前是否应使用夜间深色主题：需要同时开启深色主题设置并处于夜间模式。
+    ''' </summary>
+    Public ReadOnly Property IsDarkTheme As Boolean
+        Get
+            If Not Settings.Get(Of Boolean)("UiThemeDark") Then Return False
+            Return ModGlass.DayNightNow = 2
+        End Get
+    End Property
+
     Public Sub ThemeRefresh(Optional NewTheme As Integer = -1)
         Try
             ' WCL: 允许重复刷新（用于实时调整HSL参数）
@@ -112,6 +122,12 @@ Friend Module ModSecret
                     ColorHue = 35 : ColorSat = 82 : ColorLightAdjust = 5
                 Case 14 ' 自定义 → 使用滑块当前值，不覆盖
             End Select
+            ' WCL: 把预设的具体取值写回设置，否则后续刷新（NewTheme = -1）会退回设置里的默认值，导致整条亮度轴被抬高
+            If NewTheme >= 0 AndAlso NewTheme <= 13 Then
+                Settings.Set("UiLauncherHue", ColorHue)
+                Settings.Set("UiLauncherSat", ColorSat)
+                Settings.Set("UiLauncherLight", ColorLightAdjust)
+            End If
 
             Color1 = New MyColor().FromHSL2(ColorHue, ColorSat * 0.2, 25 + ColorLightAdjust * 0.3)
             Color2 = New MyColor().FromHSL2(ColorHue, ColorSat, 45 + ColorLightAdjust)
@@ -123,6 +139,38 @@ Friend Module ModSecret
             Color8 = New MyColor().FromHSL2(ColorHue, ColorSat, 97)
             ColorBg0 = Color4 * 0.4 + Color5 * 0.4 + ColorGray4 * 0.2
             ColorBg1 = New MyColor(190, Color7)
+            ColorGray1 = New MyColor(64, 64, 64)
+            ColorGray2 = New MyColor(115, 115, 115)
+            ColorGray3 = New MyColor(140, 140, 140)
+            ColorGray4 = New MyColor(166, 166, 166)
+            ColorGray5 = New MyColor(204, 204, 204)
+            ColorGray6 = New MyColor(235, 235, 235)
+            ColorGray7 = New MyColor(240, 240, 240)
+            ColorGray8 = New MyColor(245, 245, 245)
+
+            ' WCL: 夜间深色主题，反转亮度层级让文字变浅、表面变深
+            If IsDarkTheme Then
+                Color1 = New MyColor().FromHSL2(ColorHue, Math.Min(ColorSat, 30), 88)
+                Color2 = New MyColor().FromHSL2(ColorHue, ColorSat * 0.85, 72)
+                Color3 = New MyColor().FromHSL2(ColorHue, ColorSat * 0.8, 76)
+                Color4 = New MyColor().FromHSL2(ColorHue, ColorSat * 0.7, 62)
+                Color5 = New MyColor().FromHSL2(ColorHue, ColorSat * 0.45, 38)
+                Color6 = New MyColor().FromHSL2(ColorHue, ColorSat * 0.4, 31)
+                Color7 = New MyColor().FromHSL2(ColorHue, ColorSat * 0.35, 25)
+                ' Color8 在浅色主题里是“最浅的背景”，同时又是顶栏按钮、顶栏标题等 White 主题的前景，
+                ' 深色下保持浅色，避免图标与文字在深色背景上消失
+                Color8 = New MyColor().FromHSL2(ColorHue, Math.Min(ColorSat, 20), 88)
+                ColorBg0 = New MyColor().FromHSL2(ColorHue, ColorSat * 0.4, 27)
+                ColorBg1 = New MyColor(190, Color7)
+                ColorGray1 = New MyColor().FromHSL2(210, 10, 92)
+                ColorGray2 = New MyColor().FromHSL2(210, 9, 76)
+                ColorGray3 = New MyColor().FromHSL2(210, 8, 64)
+                ColorGray4 = New MyColor().FromHSL2(210, 8, 52)
+                ColorGray5 = New MyColor().FromHSL2(210, 7, 42)
+                ColorGray6 = New MyColor().FromHSL2(210, 8, 30)
+                ColorGray7 = New MyColor().FromHSL2(210, 9, 24)
+                ColorGray8 = New MyColor().FromHSL2(210, 10, 19)
+            End If
 
             ColorSemiTransparent = New MyColor(1, Color8)
             Application.Current.Resources("ColorBrush1") = New SolidColorBrush(Color1)
@@ -135,6 +183,16 @@ Friend Module ModSecret
             Application.Current.Resources("ColorBrush8") = New SolidColorBrush(Color8)
             Application.Current.Resources("ColorBrushBg0") = New SolidColorBrush(ColorBg0)
             Application.Current.Resources("ColorBrushBg1") = New SolidColorBrush(ColorBg1)
+            Application.Current.Resources("ColorBrushGray1") = New SolidColorBrush(ColorGray1)
+            Application.Current.Resources("ColorBrushGray2") = New SolidColorBrush(ColorGray2)
+            Application.Current.Resources("ColorBrushGray3") = New SolidColorBrush(ColorGray3)
+            Application.Current.Resources("ColorBrushGray4") = New SolidColorBrush(ColorGray4)
+            Application.Current.Resources("ColorBrushGray5") = New SolidColorBrush(ColorGray5)
+            Application.Current.Resources("ColorBrushGray6") = New SolidColorBrush(ColorGray6)
+            Application.Current.Resources("ColorBrushGray7") = New SolidColorBrush(ColorGray7)
+            Application.Current.Resources("ColorBrushGray8") = New SolidColorBrush(ColorGray8)
+            '深色主题下控件默认填充改为极淡的白，避免在深色卡片上出现灰块
+            Application.Current.Resources("ColorBrushHalfWhite") = New SolidColorBrush(If(IsDarkTheme, Color.FromArgb(26, 255, 255, 255), Color.FromArgb(85, 255, 255, 255)))
             Application.Current.Resources("ColorObject1") = CType(Color1, Color)
             Application.Current.Resources("ColorObject2") = CType(Color2, Color)
             Application.Current.Resources("ColorObject3") = CType(Color3, Color)
@@ -145,6 +203,14 @@ Friend Module ModSecret
             Application.Current.Resources("ColorObject8") = CType(Color8, Color)
             Application.Current.Resources("ColorObjectBg0") = CType(ColorBg0, Color)
             Application.Current.Resources("ColorObjectBg1") = CType(ColorBg1, Color)
+            Application.Current.Resources("ColorObjectGray1") = CType(ColorGray1, Color)
+            Application.Current.Resources("ColorObjectGray2") = CType(ColorGray2, Color)
+            Application.Current.Resources("ColorObjectGray3") = CType(ColorGray3, Color)
+            Application.Current.Resources("ColorObjectGray4") = CType(ColorGray4, Color)
+            Application.Current.Resources("ColorObjectGray5") = CType(ColorGray5, Color)
+            Application.Current.Resources("ColorObjectGray6") = CType(ColorGray6, Color)
+            Application.Current.Resources("ColorObjectGray7") = CType(ColorGray7, Color)
+            Application.Current.Resources("ColorObjectGray8") = CType(ColorGray8, Color)
             ThemeRefreshMain()
         Catch ex As Exception
             Logger.Error(ex, "刷新主题颜色失败", LogBehavior.Toast)
@@ -154,25 +220,37 @@ Friend Module ModSecret
         RunInUi(
         Sub()
             If Not FrmMain.IsLoaded Then Return
+            Dim Dark As Boolean = IsDarkTheme
             '顶部条背景
             Dim Brush = New LinearGradientBrush With {.EndPoint = New Point(1, 0), .StartPoint = New Point(0, 0)}
             Dim Deltas = ColorHueTopbarDelta.Switch(Function(d) New Integer() {-d, 0, d}, Function(d) d)
-            Brush.GradientStops.Add(New GradientStop With {.Offset = 0, .Color = New MyColor().FromHSL2(ColorHue + Deltas(0), ColorSat, 48 + ColorLightAdjust)})
-            Brush.GradientStops.Add(New GradientStop With {.Offset = 0.5, .Color = New MyColor().FromHSL2(ColorHue + Deltas(1), ColorSat, 54 + ColorLightAdjust)})
-            Brush.GradientStops.Add(New GradientStop With {.Offset = 1, .Color = New MyColor().FromHSL2(ColorHue + Deltas(2), ColorSat, 48 + ColorLightAdjust)})
+            If Dark Then
+                '深色主题：大幅降低饱和度并压暗，让顶栏融入深色界面而不是继续显示鲜艳的主题色
+                Brush.GradientStops.Add(New GradientStop With {.Offset = 0, .Color = New MyColor().FromHSL2(ColorHue + Deltas(0), ColorSat * 0.22, 20)})
+                Brush.GradientStops.Add(New GradientStop With {.Offset = 0.5, .Color = New MyColor().FromHSL2(ColorHue + Deltas(1), ColorSat * 0.18, 27)})
+                Brush.GradientStops.Add(New GradientStop With {.Offset = 1, .Color = New MyColor().FromHSL2(ColorHue + Deltas(2), ColorSat * 0.22, 20)})
+            Else
+                Dim TitleLight As Integer = 48
+                Brush.GradientStops.Add(New GradientStop With {.Offset = 0, .Color = New MyColor().FromHSL2(ColorHue + Deltas(0), ColorSat, TitleLight + ColorLightAdjust)})
+                Brush.GradientStops.Add(New GradientStop With {.Offset = 0.5, .Color = New MyColor().FromHSL2(ColorHue + Deltas(1), ColorSat, TitleLight + 6 + ColorLightAdjust)})
+                Brush.GradientStops.Add(New GradientStop With {.Offset = 1, .Color = New MyColor().FromHSL2(ColorHue + Deltas(2), ColorSat, TitleLight + ColorLightAdjust)})
+            End If
             FrmMain.PanTitle.Background = Brush
             FrmMain.PanTitle.Background.Freeze()
             '主页面背景
             If Settings.Get(Of Boolean)("UiBackgroundColorful") Then
+                Dim PageLight As Integer = If(Dark, 14, 91)
                 Brush = New LinearGradientBrush With {.EndPoint = New Point(0.1, 1), .StartPoint = New Point(0.9, 0)}
-                Brush.GradientStops.Add(New GradientStop With {.Offset = -0.1, .Color = New MyColor().FromHSL2(ColorHue - 15, ColorSat * 0.8, 91)})
-                Brush.GradientStops.Add(New GradientStop With {.Offset = 0.4, .Color = New MyColor().FromHSL2(ColorHue, ColorSat * 0.8, 91)})
-                Brush.GradientStops.Add(New GradientStop With {.Offset = 1.1, .Color = New MyColor().FromHSL2(ColorHue + 15, ColorSat * 0.8, 91)})
+                Brush.GradientStops.Add(New GradientStop With {.Offset = -0.1, .Color = New MyColor().FromHSL2(ColorHue - 15, ColorSat * 0.8, PageLight)})
+                Brush.GradientStops.Add(New GradientStop With {.Offset = 0.4, .Color = New MyColor().FromHSL2(ColorHue, ColorSat * 0.8, PageLight)})
+                Brush.GradientStops.Add(New GradientStop With {.Offset = 1.1, .Color = New MyColor().FromHSL2(ColorHue + 15, ColorSat * 0.8, PageLight)})
                 FrmMain.PanForm.Background = Brush
             Else
-                FrmMain.PanForm.Background = New MyColor(245, 245, 245)
+                FrmMain.PanForm.Background = If(Dark, New MyColor(22, 25, 31), New MyColor(245, 245, 245))
             End If
             FrmMain.PanForm.Background.Freeze()
+            '磨砂玻璃染色
+            ModGlass.ApplyThemeTint()
         End Sub)
     End Sub
     Friend Sub ThemeCheckAll(EffectSetup As Boolean)

@@ -363,8 +363,10 @@ Public Class FormMain
         Handle = New WindowInteropHelper(Me).Handle
         '读取设置
         UpdateBackgroundAndTitleBar()
+        ModGlass.GlassRefresh()
         PageSetupUI.HiddenRefresh()
         PageSetupUI.BackgroundRefresh(False, True)
+        ModGlass.StartDayNightWatch()
         MusicRefreshPlay(False, True)
         '扩展按钮
         BtnExtraDownload.ShowCheck = AddressOf BtnExtraDownload_ShowCheck
@@ -372,6 +374,11 @@ Public Class FormMain
         BtnExtraApril.ShowCheck = AddressOf BtnExtraApril_ShowCheck
         BtnExtraShutdown.ShowCheck = AddressOf BtnExtraShutdown_ShowCheck
         BtnExtraApril.ShowRefresh()
+        '唱片机
+        JukeboxScan()
+        BtnExtraJukebox.LogoBitmap = JukeboxIconPath()
+        BtnExtraJukebox.CanRightClick = True
+        BtnExtraJukebox.Show = True
         '初始化尺寸改变
         Dim Resizer As New MyResizer(Me)
         Resizer.addResizerDown(ResizerB)
@@ -627,6 +634,8 @@ Public Class FormMain
         RunInUiWait(
         Sub()
             IsHitTestVisible = False
+            ModGlass.GlassStop()
+            ModGlass.StopDayNightWatch()
             If PanBack.RenderTransform Is Nothing Then
                 Dim TransformPos As New TranslateTransform(0, 0)
                 Dim TransformRotate As New RotateTransform(0)
@@ -782,6 +791,8 @@ Public Class FormMain
                     Brush.AlignmentY = AlignmentY.Bottom
             End Select
         End If
+        '磨砂玻璃底图
+        ModGlass.RefreshWallpaper()
         '标题栏显示类型
         Select Case Settings.Get(Of Integer)("UiLogoType")
             Case 0 '无
@@ -1284,6 +1295,7 @@ Public Class FormMain
         OtherAbout = 1
         OtherTest = 2
         OtherBugReport = 3
+        OtherJukebox = 5
         InstanceOverall = 0
         InstanceSetup = 1
         InstanceModify = 2
@@ -1697,6 +1709,20 @@ Public Class FormMain
     End Sub
     Private Sub BtnExtraMusic_RightClick(sender As Object, e As EventArgs) Handles BtnExtraMusic.RightClick
         MusicControlNext()
+    End Sub
+
+    '唱片机
+    Private Sub BtnExtraJukebox_Click(sender As Object, e As MouseButtonEventArgs) Handles BtnExtraJukebox.Click
+        '已处于唱片编辑页时切换播放状态，否则呼出唱片编辑页
+        If PageCurrent.Page = PageType.Other AndAlso FrmOtherLeft IsNot Nothing AndAlso
+           FrmOtherLeft.PageID = PageSubType.OtherJukebox Then
+            JukeboxToggle()
+        Else
+            PageChange(PageType.Other, PageSubType.OtherJukebox)
+        End If
+    End Sub
+    Private Sub BtnExtraJukebox_RightClick(sender As Object, e As MouseButtonEventArgs) Handles BtnExtraJukebox.RightClick
+        JukeboxToggle()
     End Sub
 
     '任务管理

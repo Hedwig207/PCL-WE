@@ -26,5 +26,10 @@
                 <ScaleTransform />
             </Path.RenderTransform>
         </Path>
+        <Image x:Name="ImgLogo" Margin="6" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" Visibility="Collapsed" SnapsToDevicePixels="True" UseLayoutRounding="True">
+            <Image.RenderTransform>
+                <ScaleTransform />
+            </Image.RenderTransform>
+        </Image>
     </Grid>
 </Grid>

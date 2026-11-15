@@ -54,7 +54,7 @@ Public Class PageOtherLeft
     ''' <summary>
     ''' 勾选事件改变页面。
     ''' </summary>
-    Private Sub PageCheck(sender As FrameworkElement, e As RouteEventArgs) Handles ItemAbout.Check, ItemHelp.Check, ItemTest.Check, ItemBugReport.Check
+    Private Sub PageCheck(sender As FrameworkElement, e As RouteEventArgs) Handles ItemAbout.Check, ItemHelp.Check, ItemTest.Check, ItemBugReport.Check, ItemJukebox.Check
         '尚未初始化控件属性时，sender.Tag 为 Nothing，会导致切换到页面 0
         '若使用 IsLoaded，则会导致模拟点击不被执行（模拟点击切换页面时，控件的 IsLoaded 为 False）
         If sender.Tag IsNot Nothing Then PageChange(Val(sender.Tag))
@@ -75,6 +75,9 @@ Public Class PageOtherLeft
             Case FormMain.PageSubType.OtherBugReport
                 If FrmOtherBugReport Is Nothing Then FrmOtherBugReport = New PageOtherBugReport
                 Return FrmOtherBugReport
+            Case FormMain.PageSubType.OtherJukebox
+                If FrmOtherJukebox Is Nothing Then FrmOtherJukebox = New PageOtherJukebox
+                Return FrmOtherJukebox
             Case Else
                 Throw New Exception("未知的更多子页面种类：" & ID)
         End Select

@@ -426,6 +426,7 @@ EndHint:
     Public FrmOtherAbout As PageOtherAbout
     Public FrmOtherTest As PageOtherTest
     Public FrmOtherBugReport As PageOtherBugReport
+    Public FrmOtherJukebox As PageOtherJukebox
 
     '登录页面声明
     Public FrmLoginLegacy As PageLoginLegacy
