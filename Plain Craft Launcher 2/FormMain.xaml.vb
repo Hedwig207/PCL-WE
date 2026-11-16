@@ -385,9 +385,34 @@ Public Class FormMain
         BtnExtraApril.ShowRefresh()
         '唱片机
         JukeboxScan()
-        BtnExtraJukebox.LogoBitmap = JukeboxIconPath()
+        '先加载内置矢量图标兜底，素材缺失（如仅替换 exe 升级）时也绝不因图标加载失败而崩溃
+        BtnExtraJukebox.Logo = Logo.IconJukebox
+        BtnExtraJukebox.LogoScale = 0.95
+        Try
+            Dim JukeboxIconFile As String = JukeboxIconPath()
+            If JukeboxIconFile <> "" Then BtnExtraJukebox.LogoBitmap = JukeboxIconFile
+        Catch ex As Exception
+            Logger.Warn(ex, "唱片机按钮图标加载失败，已使用内置矢量图标")
+        End Try
         BtnExtraJukebox.CanRightClick = True
         BtnExtraJukebox.Show = True
+        '素材缺失时后台自动从仓库下载，成功后重扫唱片列表并刷新按钮图标；全程静默，不阻塞也不影响启动
+        If Not JukeboxHasContent() Then
+            Dim JukeboxNotify As Action = Sub()
+                                               JukeboxScan()
+                                               Try
+                                                   Dim NewIcon As String = JukeboxIconPath()
+                                                   If NewIcon <> "" Then BtnExtraJukebox.LogoBitmap = NewIcon
+                                               Catch ex As Exception
+                                                   Logger.Warn(ex, "刷新唱片机按钮图标失败")
+                                               End Try
+                                           End Sub
+            RunInNewThread(Sub()
+                               If JukeboxAutoDownload() Then
+                                   RunInUi(JukeboxNotify)
+                               End If
+                           End Sub, "JukeboxAutoDownload", ThreadPriority.BelowNormal)
+        End If
         '初始化尺寸改变
         Dim Resizer As New MyResizer(Me)
         Resizer.addResizerDown(ResizerB)

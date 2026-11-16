@@ -1,4 +1,5 @@
 Imports NAudio.Wave
+Imports Newtonsoft.Json.Linq
 
 ''' <summary>
 ''' 唱片机模块：负责唱片的扫描、播放控制与状态回调。
@@ -102,14 +103,90 @@ Public Module ModJukebox
     End Function
 
     ''' <summary>
+    ''' 本地是否已具备可播放的唱片素材。
+    ''' </summary>
+    Public Function JukeboxHasContent() As Boolean
+        Try
+            Dim MusicDir As String = JukeboxFolderGet() & "music\"
+            If Not Directory.Exists(MusicDir) Then Return False
+            Return Directory.GetFiles(MusicDir).Any(Function(f) JukeboxIsAudio(f))
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' 当本地 musicassets 素材缺失时，从 PCL-WE 仓库的 WCL/musicassets 目录自动下载唱片素材。
+    ''' <para/> 通过 GitHub contents API 动态列出文件后逐个下载，无需单独托管 ZIP。
+    ''' <para/> 任一步骤失败都会返回 False 并记录日志，绝不抛出异常，以免影响启动。
+    ''' </summary>
+    Public Function JukeboxAutoDownload() As Boolean
+        Const Repo As String = "Hedwig207/PCL-WE"
+        Const BasePath As String = "WCL/musicassets"
+        Try
+            Dim Folder As String = JukeboxFolderGet()
+            DirectoryUtils.Create(Folder & "music\")
+            DirectoryUtils.Create(Folder & "disc\")
+            Dim Got As Integer = 0
+            '顶层文件（如 Jukebox.png）
+            Dim RootDirectory As New Uri($"https://api.github.com/repos/{Repo}/contents/{BasePath}")
+            Dim RootFiles As JArray = JArray.Parse(ModNet.NetRequestByClient(RootDirectory.ToString(), RequireJson:=True))
+            For Each Item As JObject In RootFiles
+                If CStr(Item("type")) = "file" Then
+                    Dim Name As String = CStr(Item("name"))
+                    Dim DlUrl As String = CStr(Item("download_url"))
+                    Got += JukeboxDownload(DlUrl, Folder & Name)
+                End If
+            Next
+            '两个子目录：music 与 disc
+            For Each SubName As String In {"music", "disc"}
+                Dim ApiUrl As String = $"https://api.github.com/repos/{Repo}/contents/{BasePath}/{SubName}"
+                Dim SubFiles As JArray = JArray.Parse(ModNet.NetRequestByClient(ApiUrl, RequireJson:=True))
+                For Each Item As JObject In SubFiles
+                    If CStr(Item("type")) = "file" Then
+                        Dim Name As String = CStr(Item("name"))
+                        Dim DlUrl As String = CStr(Item("download_url"))
+                        Got += JukeboxDownload(DlUrl, Folder & SubName & "\" & Name)
+                    End If
+                Next
+            Next
+            If Got > 0 Then
+                Logger.Info($"唱片素材自动下载完成，共 {Got} 个文件")
+                Return True
+            Else
+                Logger.Warn("唱片素材自动下载完成，但未下载到任何文件（可能仓库路径有误）")
+                Return False
+            End If
+        Catch ex As Exception
+            Logger.Warn(ex, "唱片素材自动下载失败")
+            Return False
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' 下载单个素材文件，成功返回 True。
+    ''' </summary>
+    Private Function JukeboxDownload(Url As String, LocalPath As String) As Boolean
+        If String.IsNullOrEmpty(Url) Then Return False
+        Try
+            ModNet.NetDownloadByClient(Url, LocalPath)
+            Return True
+        Catch ex As Exception
+            Logger.Warn(ex, $"唱片素材下载失败（{LocalPath}）")
+            Return False
+        End Try
+    End Function
+
+    ''' <summary>
     ''' 唱片机按钮图标路径（musicassets 下的 Jukebox.png）。
+    ''' <para/> 若图标不存在则返回空字符串，调用方应据此使用内置矢量图标兜底，避免加载失败崩溃。
     ''' </summary>
     Public Function JukeboxIconPath() As String
         Dim Folder As String = JukeboxFolderGet()
         Dim UpperPath As String = Folder & "Jukebox.png"
         If File.Exists(UpperPath) Then Return UpperPath
         Dim LowerPath As String = Folder & "jukebox.png"
-        Return If(File.Exists(LowerPath), LowerPath, UpperPath)
+        Return If(File.Exists(LowerPath), LowerPath, "")
     End Function
 
     ''' <summary>

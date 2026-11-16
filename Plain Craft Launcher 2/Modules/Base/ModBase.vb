@@ -6,7 +6,7 @@ Public Module ModBase
 #Region "声明"
 
     '下列版本信息由更新器自动修改
-    Public Const VersionBaseName As String = "WCL beta1.2-intest" '显示用版本名
+    Public Const VersionBaseName As String = "WCL beta1.2-emfix_1" '显示用版本名
     Public Const CommitHash As String = "" 'Commit Hash，由 GitHub Workflow 自动替换
 #If RELEASE Then
     Public Const VersionCode As Integer = 414 '正式版
@@ -15,7 +15,7 @@ Public Module ModBase
 #End If
 
     '版本信息
-    Public Const VersionDisplay As String = "WCL beta1.2-intest"
+    Public Const VersionDisplay As String = "WCL beta1.2-emfix_1"
 #If DEBUG Then
     Public Const BuildTypeDisplay As String = "内测版"
     Public Const BuildType As BuildTypes = BuildTypes.Debug
@@ -106,6 +106,10 @@ Public Module ModBase
 #Region "矢量图标"
 
     Public Class Logo
+        ''' <summary>
+        ''' 图标按钮，唱片（内置兜底），1x
+        ''' </summary>
+        Public Const IconJukebox As String = "M42 512a470 470 0 1 1 940 0 470 470 0 0 1-940 0z M362 512a150 150 0 1 1 300 0 150 150 0 0 1-300 0z"
         ''' <summary>
         ''' 图标按钮，心（空心），1.1x
         ''' </summary>
