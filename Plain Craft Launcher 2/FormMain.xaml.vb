@@ -256,6 +256,15 @@ Public Class FormMain
             End If
         End If
         'PCL WE 专属更新日志（内测版与正式版都展示）
+        If LastVersion < 417 Then 'WCL beta1.2-intest
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(5, "新增：唱片机！右下角常驻一个唱片按钮，单击即可呼出「唱片编辑」页面，支持单曲播放、随机 / 列表 / 循环三种播放模式，以及暂停与进度拖动"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(4, "新增：唱片编辑页可以导入自己的歌曲，还能为每张唱片单独设置图标；内置素材位于 PCL\musicassets，自定义唱片位于 PCL\Jukebox"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(3, "新增：天气源更换为 open-meteo，无需密钥即可获取实况天气，并支持手动指定城市；同时会按云量区分晴天与多云，动态削弱阳光强度"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(2, "优化：唱片素材会随构建自动复制到 PCL\musicassets，目录不存在时也会自动创建，不再需要手动放置"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(2, "修复：夜间模式下标题栏仍显示鲜艳的主题色，与整体色调格格不入"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(2, "修复：从夜间模式切回日间模式后，标题栏会残留一层白色遮罩"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(1, "优化：「Bug 反馈」页的刷新按钮加宽，不再显得局促"))
+        End If
         If LastVersion < 416 Then 'WCL beta1.1-intest-emfix_1
             FeatureList.Add(New KeyValuePair(Of Integer, String)(4, "新增：MC 输入法修复，游戏窗口内自动锁定英文输入法，避免按 Shift 潜行时卡输入；按 T 或 / 打开聊天框后仍可正常切换中文"))
         End If
